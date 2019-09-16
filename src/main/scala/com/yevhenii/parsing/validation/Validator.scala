@@ -5,17 +5,18 @@ import com.yevhenii.utils.Instances._
 
 import scala.annotation.tailrec
 
-trait Validator[L, R] {
-  def validate(x: R): Either[L, R]
+trait Validator[R] {
+  type Err = List[String]
+
+  def validate(x: R): Either[Err, R]
 }
 
-object Validator {
-  val bracketsValidator = new Validator[List[String], String] {
-    type Err = List[String]
+object Instances {
+  val bracketsValidator = new Validator[String] {
     type Result = Either[Err, String]
 
-    override def validate(exprStr: String): Either[List[String], String] = {
-      @tailrec def loop(depth: Int, index: Int, curr: Result): Either[List[String], String] = (depth, index) match {
+    override def validate(exprStr: String): Either[Err, String] = {
+      @tailrec def loop(depth: Int, index: Int, curr: Result): Result = (depth, index) match {
         case (0, ind) if ind == exprStr.length =>
           curr
         case (_, ind) if ind == exprStr.length =>
