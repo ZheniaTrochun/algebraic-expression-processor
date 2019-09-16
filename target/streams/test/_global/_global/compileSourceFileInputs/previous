@@ -1,0 +1,1 @@
+["sbt.Task[scala.collection.immutable.Map[java.lang.String, scala.collection.Seq[scala.Tuple2[java.nio.file.Path, sbt.nio.FileStamp]]]]",{"2.13.0":{"hashes":[["C:\\Users\\Yevhenii\\Documents\\kpi\\algebraic-expression-processor\\src\\test\\scala\\com\\yevhenii\\parsing\\validation\\BracketsValidatorSpec.scala","04283d7e4eaf619b8c98a0582cb9db5280cb3098"]],"lastModifiedTimes":[]}}]
