@@ -16,7 +16,7 @@ class LiteralValidatorSpec extends WordSpec with Matchers {
       val expr = "2 + 2 * x (2 * (3 * x + 2) + 2)"
       val res = Validator.literalsValidatorCreator(Set("y")).validate(expr)
 
-      res shouldBe Left(List("Found unexpected literal, literal = y"))
+      res shouldBe Left(List("Found unexpected literal, literal = x"))
     }
 
     "find all errors during validation algebraic expression 2" in {

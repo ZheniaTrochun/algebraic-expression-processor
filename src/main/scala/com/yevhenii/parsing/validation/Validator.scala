@@ -44,27 +44,18 @@ object Validator {
 
   val literalsValidatorCreator: Set[String] => Validator[String] = (literals: Set[String]) =>
     (exprStr: String) => {
-      val parsedLiterals = exprStr.split("[^a-zA-Z]*").filterNot(_.isEmpty).toSet
+      val parsedLiterals = exprStr.split("[^a-zA-Z]{1,}").filterNot(_.isEmpty).toSet
       val illegalLiterals = parsedLiterals diff literals
 
       def err(literal: String): Err = List(s"Found unexpected literal, literal = $literal")
-//      def err(literal: String, ind: Int): Err = List(s"Error in literals, literal = $literal, index = $ind")
-
-//      def findLiteral(x: String): Int = {
-//        lazy val first = s" $exprStr ".indexOf(s" $x ")
-//        lazy val second = s" $exprStr ".indexOf(s" $x(")
-//
-//        if (first != -1) first - 1
-//        else second - 1
-//      }
 
       if (illegalLiterals.isEmpty) Right {
         exprStr
       } else Left {
-        literals
+        illegalLiterals
           .toList
           .map(err)
-          .fold[Err](Monoid.unit)(Monoid.combine[Err])
+          .fold(Monoid.unit[Err])(Monoid.combine[Err])
       }
     }
 }
