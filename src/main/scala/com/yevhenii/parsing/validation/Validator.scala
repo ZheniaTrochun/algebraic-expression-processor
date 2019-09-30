@@ -1,8 +1,8 @@
 package com.yevhenii.parsing.validation
 
 import com.yevhenii.parsing.validation.Validator.Err
-import com.yevhenii.utils.Monoid
-import com.yevhenii.utils.Instances._
+import cats.Monoid
+import cats.implicits._
 
 import scala.annotation.tailrec
 
@@ -55,7 +55,7 @@ object Validator {
         illegalLiterals
           .toList
           .map(err)
-          .fold(Monoid.unit[Err])(Monoid.combine[Err])
+          .fold(Monoid[Err].empty)(Monoid[Err].combine)
       }
     }
 }
