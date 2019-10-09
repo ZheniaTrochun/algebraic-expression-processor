@@ -18,18 +18,22 @@ object FormulaParser extends RegexParsers with PackratParsers {
 
   lazy val expression: PackratParser[Expression] = expression ~ ("+" | "-") ~ term ^^ binOperation | term
 
-  def binOperation(p: Expression ~ String ~ Expression) = p match {
+  def binOperation(p: Expression ~ String ~ Expression): BinOperation = p match {
     case left ~ operator ~ right => BinOperation(left, BinOperator(operator), right)
   }
 
   def apply(expressionStr: String): Either[ParseError, Expression] = {
-    parse(expression, new PackratReader(new CharSequenceReader(expressionStr))) match {
-      case Success(result, next) => Right(result)
-      case NoSuccess(err, next) => Left(ParseError(err))
+    parseAll(expression, new PackratReader(new CharSequenceReader(expressionStr))) match {
+      case Success(result, next) =>
+        Right(result)
+      case NoSuccess("end of input expected", next) =>
+          Left(ParseError("unexpected element of input", next.pos.longString))
+      case NoSuccess(err, next) =>
+          Left(ParseError(err, next.pos.longString))
     }
   }
 
-  case class ParseError(msg: String)
+  case class ParseError(msg: String, source: String)
 }
 
 sealed trait Expression
