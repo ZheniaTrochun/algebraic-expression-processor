@@ -3,7 +3,9 @@ package com.yevhenii.parsing.validation
 import com.yevhenii.parsing.validation.Validator.Err
 import cats.Monoid
 import cats.implicits._
+import com.yevhenii.parsing.FormulaParser
 
+import scala.collection.parallel.ParSeq
 import scala.annotation.tailrec
 
 trait Validator[R] {
@@ -13,6 +15,8 @@ trait Validator[R] {
 object Validator {
   type Err = List[String]
   type Result = Either[Err, String]
+
+  val allowedOperators = Set('+', '-', '*', '/')
 
   def addFailure(prev: Result, err: Err): Result = {
     prev match {
@@ -58,4 +62,67 @@ object Validator {
           .fold(Monoid[Err].empty)(Monoid[Err].combine)
       }
     }
+
+  val operatorValidator: Validator[String] = { exprStr =>
+    val notOperatorRegex = "[a-zA-Z0-9_\\.\\(\\)\\s]*"
+    val operators = exprStr.replaceAll(notOperatorRegex, "").toSet
+    val notExpected = operators diff allowedOperators
+
+    if (notExpected.isEmpty) {
+      Right(exprStr)
+    } else {
+      Left(notExpected.toList.map(op => s"Unexpected operator: $op"))
+    }
+  }
+
+  val regexValidator: Validator[String] = { exprStr =>
+    val isOperatorAtTheEnd = "[-+*/]$".r
+    val isOperatorBeforeBracket = "[-+*/]\\)".r
+    val isOperatorAfterBracket = "\\([*/+]".r
+
+    val checklist = isOperatorAtTheEnd :: isOperatorBeforeBracket :: isOperatorAfterBracket :: Nil
+
+    checklist.foldLeft[Result](Right(exprStr)) { (result, regex) =>
+      regex.findAllIn(exprStr).toList match {
+        case Nil => result
+        case nonEmpty => addFailure(result, nonEmpty.map(s => s"unexpected token: $s"))
+      }
+    }
+  }
+
+  val tryParse: Validator[String] = { exprStr =>
+    FormulaParser(exprStr).map(_ => exprStr).left.map(e => List(e.msg))
+  }
+
+  def validate(literals: Set[String])(expression: String): Result = {
+    val validationSeq = ParSeq(
+      bracketsValidator,
+      literalsValidatorCreator(literals),
+      operatorValidator,
+      regexValidator,
+      tryParse
+    )
+
+//    validationSeq.map(v => v.validate(expression)).fold(Right(expression)) { (first, second) =>
+//      (first, second) match {
+//        case (Right(_), Right(_)) => first
+//        case (Left(err1), Left(err2)) => Left(err1 ::: err2)
+//        case (Left(err), Right(_)) => first
+//        case (Right(_), Left(err)) => second
+//      }
+//    }
+
+    validationSeq.map(v => v.validate(expression)).fold[Result](Monoid.empty)(Monoid.combine(_, _))
+  }
+
+  implicit def resultMonoid: Monoid[Result] = new Monoid[Result] {
+    override def empty: Result = Right("")
+
+    override def combine(x: Result, y: Result): Result = (x, y) match {
+      case (Right(_), Right(_)) => x
+      case (Left(e1), Left(e2)) => Left(Monoid[Err].combine(e1, e2))
+      case (Left(_), _) => x
+      case (_, Left(_)) => y
+    }
+  }
 }
