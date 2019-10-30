@@ -1,5 +1,7 @@
 package com.yevhenii.parsing
 
+import cats.Show
+
 import scala.util.parsing.combinator.{PackratParsers, RegexParsers}
 import scala.util.parsing.input.CharSequenceReader
 
@@ -24,23 +26,20 @@ object FormulaParser extends RegexParsers with PackratParsers {
 
   def apply(expressionStr: String): Either[ParseError, Expression] = {
     parseAll(expression, new PackratReader(new CharSequenceReader(expressionStr))) match {
-      case Success(result, next) =>
+      case Success(result, _) =>
         Right(result)
-      case NoSuccess("end of input expected", next) =>
-          Left(ParseError("unexpected element of input", next.pos.longString))
       case NoSuccess(err, next) =>
-          Left(ParseError(err, next.pos.longString))
+        Left(ParseError(err, next.pos.longString))
     }
   }
 
-  case class ParseError(msg: String, source: String)
+  case class ParseError(msg: String, source: String) extends Exception {
+    override def getMessage: String = s"$msg\n$source"
+  }
+
+  object ParseError {
+    implicit val errorShow: Show[Throwable] = new Show[Throwable] {
+      override def show(t: Throwable): String = t.getMessage
+    }
+  }
 }
-
-sealed trait Expression
-
-case class BinOperator(operator: String) extends Exception
-
-case class Number(value: Double) extends Expression
-case class Constant(name: String) extends Expression
-case class BinOperation(left: Expression, operator: BinOperator, right: Expression) extends Expression
-case class FuncCall(funcName: Constant, argument: Expression) extends Expression

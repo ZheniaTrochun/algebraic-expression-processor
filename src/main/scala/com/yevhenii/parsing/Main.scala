@@ -1,20 +1,33 @@
 package com.yevhenii.parsing
 
-import com.yevhenii.parsing.FormulaParser.ParseError
+import cats.Show
+import cats.effect.IO
+import com.yevhenii.parsing.Expression._
+import com.yevhenii.parsing.FormulaParser.ParseError._
 
-object Main extends App {
+object Main {
 
-  println("Enter expression:")
-  val input = io.StdIn.readLine()
+  val getInput: IO[String] = IO.apply {
+    println("Enter expression:")
+    io.StdIn.readLine()
+  }
 
-  val res = FormulaParser.apply(input)
+  def printFailure(e: Throwable): Unit = {
+    println("Invalid expression:")
+    println(Show[Throwable].show(e))
+  }
 
-  res match {
-    case Left(ParseError(msg, source)) =>
-      println(msg)
-      println(source)
+  def printSuccess(x: Expression): Unit = {
+    println("Parsed successfully, parsing tree:")
+    println(Show[Expression].show(x))
+  }
 
-    case Right(_) =>
-      println("Everything is correct!")
+  val program: IO[Unit] = getInput
+    .map(FormulaParser.apply)
+    .flatMap(IO.fromEither)
+    .redeem(printFailure, printSuccess)
+
+  def main(args: Array[String]): Unit = {
+    program.unsafeRunSync()
   }
 }
