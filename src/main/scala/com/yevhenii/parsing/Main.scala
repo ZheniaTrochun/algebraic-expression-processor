@@ -27,7 +27,20 @@ object Main {
     .flatMap(IO.fromEither)
     .redeem(printFailure, printSuccess)
 
-  def main(args: Array[String]): Unit = {
+  def runOnce(): Unit = {
     program.unsafeRunSync()
   }
+
+  def runAsRepl(): Unit = {
+    while (true) {
+      runOnce()
+    }
+  }
+
+  def run(args: Array[String]): Unit = {
+    if (args.contains("repl")) runAsRepl()
+    else runOnce()
+  }
+
+  def main(args: Array[String]): Unit = run(args)
 }
