@@ -3,6 +3,8 @@ package com.yevhenii.parsing
 import cats.Show
 import cats.effect.IO
 import com.yevhenii.parsing.Expression._
+import com.yevhenii.parsing.balancing.Balancer._
+import com.yevhenii.parsing.utils.IoUtils._
 import com.yevhenii.parsing.FormulaParser.ParseError._
 
 object Main {
@@ -25,6 +27,8 @@ object Main {
   val program: IO[Unit] = getInput
     .map(FormulaParser.apply)
     .flatMap(IO.fromEither)
+    .peek(x => IO(println(Show[Expression].show(x))))
+    .map(balance)
     .redeem(printFailure, printSuccess)
 
   def runOnce(): Unit = {

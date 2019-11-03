@@ -14,7 +14,9 @@ object FormulaParser extends RegexParsers with PackratParsers {
 
   def funcCall: Parser[FuncCall] = id ~ ("(" ~> expression <~ ")") ^^ { case id ~ expr => FuncCall(id, expr) }
 
-  def value: Parser[Expression] = number | funcCall | id | ("(" ~> expression <~ ")")
+  def value: Parser[Expression] = number | funcCall | id | bracketed
+
+  lazy val bracketed: PackratParser[Expression] = ("(" ~> expression <~ ")") ^^ (x => BracketedExpression(x))
 
   lazy val term: PackratParser[Expression] = term ~ ("*" | "/") ~ value ^^ binOperation | value
 
