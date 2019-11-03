@@ -1,20 +1,46 @@
 package com.yevhenii.parsing.optimisation
 
-import com.yevhenii.parsing.{BinOperation, BinOperator, BracketedExpression, Constant, Expression, FuncCall, Number}
+import com.yevhenii.parsing.{BinOperation, BinOperator, BracketedExpression, Constant, Expression, FormulaParser, FuncCall, Number, UnaryOperation, UnaryOperator}
 
-// todo DOES NOT WORK EVEN CLOSE
+import scala.annotation.tailrec
+
 object Optimiser {
 
-  def divisionReplaceLoop(expr: Expression): Expression = expr match {
-    case BinOperation(left, BinOperator("/"), right) => BinOperation(left, BinOperator("*"), divisionReplaceLoop(right))
+  def subsructReplace(expr: Expression): Expression = expr match {
+    case BinOperation(left, BinOperator("-"), right) =>
+      BinOperation(left, BinOperator("+"), UnaryOperation(subsructReplace(right), UnaryOperator("-")))
     case x => x
   }
 
   def optimize(expr: Expression): Expression = expr match {
-    case BinOperation(left, BinOperator("/"), right) => BinOperation(optimize(left), BinOperator("/"), BracketedExpression(divisionReplaceLoop(right)))
+    case x @ BinOperation(_, BinOperator("-"), _) => subsructReplace(x)
+    case BinOperation(left, BinOperator("/"), right) => divisionReplaceLoop(left, right :: Nil)
     case BinOperation(left, op, right) => BinOperation(optimize(left), op, optimize(right))
     case FuncCall(name, inner) => FuncCall(name, optimize(inner))
     case BracketedExpression(inner) => BracketedExpression(optimize(inner))
+    case UnaryOperation(inner, op) => UnaryOperation(optimize(inner), op)
     case x => x
+  }
+
+  @tailrec
+  def divisionReplaceLoop(expr: Expression, stackExpr: List[Expression]): Expression = expr match {
+    case BinOperation(left @ (Number(_) | Constant(_) | FuncCall(_, _) | BracketedExpression(_) | UnaryOperation(_, _)), BinOperator("/"), right) =>
+      BinOperation(left, BinOperator("/"), BracketedExpression(join(right :: stackExpr)))
+    case BinOperation(left @ BinOperation(_, BinOperator("-") | BinOperator("+") | BinOperator("*"), _), BinOperator("/"), right) =>
+      BinOperation(left, BinOperator("/"), BracketedExpression(join(right :: stackExpr)))
+    case BinOperation(left, BinOperator("/"), right) =>
+      divisionReplaceLoop(left, right :: stackExpr)
+//    case x => x
+  }
+
+  def join(stackExpr: List[Expression]): Expression = {
+    stackExpr.size match {
+      case 0 =>
+        Number(1)
+      case 1 =>
+        stackExpr.head
+      case _ =>
+        stackExpr.reduce((left, right) => BinOperation(left, BinOperator("*"), right))
+    }
   }
 }

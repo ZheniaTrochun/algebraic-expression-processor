@@ -7,13 +7,23 @@ import math.abs
 
 object Balancer {
 
+  // todo doest not work for 1/2/3/4/5/(6+7)/8*9
   def balance(exprTree: Expression): Expression = {
     exprTree match {
       case x @ BinOperation(left, op, right) if shouldBalance(x) => balance(balanceBinary(BinOperation(balance(left), op, balance(right))))
       case BinOperation(left, op, right) => BinOperation(balance(left), op, balance(right))
       case FuncCall(name, inner) => FuncCall(name, balance(inner))
       case BracketedExpression(inner) => BracketedExpression(balance(inner))
+      case UnaryOperation(inner, op) => UnaryOperation(balance(inner), op)
       case x => x
+    }
+  }
+
+  def shouldBalance(exprTree: Expression): Boolean = {
+    exprTree match {
+      case BinOperation(_, BinOperator("/"), _) => false
+      case BinOperation(left, _, right) => abs(size(left) - size(right)) > 1
+      case _ => false
     }
   }
 
@@ -28,7 +38,7 @@ object Balancer {
   }
 
   def shouldRotateLeft(tree: BinOperation): Boolean = tree match {
-    case BinOperation(l @ BinOperation(_, lop, _), op, r) if abs(size(l) - size(r)) > 1 =>
+    case BinOperation(l @ BinOperation(_, lop, _), op, r) if size(l) - size(r) > 1 =>
       (lop, op) match {
         case (BinOperator("+"), BinOperator("+")) => true
         case (BinOperator("-"), BinOperator("-")) => true
@@ -41,7 +51,7 @@ object Balancer {
   }
 
   def shouldRotateRight(tree: BinOperation): Boolean = tree match {
-    case BinOperation(l, op, r @ BinOperation(_, rop, _)) if abs(size(l) - size(r)) > 1 =>
+    case BinOperation(l, op, r @ BinOperation(_, rop, _)) if size(r) - size(l) > 1 =>
       (op, rop) match {
         case (BinOperator("+"), BinOperator("+")) => true
         case (BinOperator("-"), BinOperator("-")) => true
@@ -60,14 +70,7 @@ object Balancer {
       case BinOperation(left, _, right) => 1 + max(size(left), size(right))
       case FuncCall(_, x) => 1 + size(x)
       case BracketedExpression(x) => size(x)
-    }
-  }
-
-  def shouldBalance(exprTree: Expression): Boolean = {
-    exprTree match {
-      case BinOperation(_, BinOperator("/"), _) => false
-      case BinOperation(left, _, right) => abs(size(left) - size(right)) > 1
-      case _ => false
+      case UnaryOperation(x, _) => size(x)
     }
   }
 

@@ -4,6 +4,7 @@ import cats.Show
 import cats.effect.IO
 import com.yevhenii.parsing.Expression._
 import com.yevhenii.parsing.balancing.Balancer._
+import com.yevhenii.parsing.optimisation.Optimiser._
 import com.yevhenii.parsing.utils.IoUtils._
 import com.yevhenii.parsing.FormulaParser.ParseError._
 
@@ -27,6 +28,8 @@ object Main {
   val program: IO[Unit] = getInput
     .map(FormulaParser.apply)
     .flatMap(IO.fromEither)
+    .peek(x => IO(println(Show[Expression].show(x))))
+    .map(optimize)
     .peek(x => IO(println(Show[Expression].show(x))))
     .map(balance)
     .redeem(printFailure, printSuccess)
