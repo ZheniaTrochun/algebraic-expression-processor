@@ -25,12 +25,12 @@ object Optimiser {
   @tailrec
   def divisionReplaceLoop(expr: Expression, stackExpr: List[Expression]): Expression = expr match {
     case BinOperation(left @ (Number(_) | Constant(_) | FuncCall(_, _) | BracketedExpression(_) | UnaryOperation(_, _)), BinOperator("/"), right) =>
-      BinOperation(left, BinOperator("/"), BracketedExpression(join(right :: stackExpr)))
+      BinOperation(left, BinOperator("/"), join(right :: stackExpr))
     case BinOperation(left @ BinOperation(_, BinOperator("-") | BinOperator("+") | BinOperator("*"), _), BinOperator("/"), right) =>
-      BinOperation(left, BinOperator("/"), BracketedExpression(join(right :: stackExpr)))
+      BinOperation(left, BinOperator("/"), join(right :: stackExpr))
     case BinOperation(left, BinOperator("/"), right) =>
       divisionReplaceLoop(left, right :: stackExpr)
-//    case x => x
+    case x => BinOperation(x, BinOperator("/"), join(stackExpr))
   }
 
   def join(stackExpr: List[Expression]): Expression = {
@@ -40,7 +40,7 @@ object Optimiser {
       case 1 =>
         stackExpr.head
       case _ =>
-        stackExpr.reduce((left, right) => BinOperation(left, BinOperator("*"), right))
+        BracketedExpression(stackExpr.reduce((left, right) => BinOperation(left, BinOperator("*"), right)))
     }
   }
 }

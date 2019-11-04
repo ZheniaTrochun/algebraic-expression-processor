@@ -5,7 +5,6 @@ import cats.effect.IO
 import com.yevhenii.parsing.Expression._
 import com.yevhenii.parsing.balancing.Balancer._
 import com.yevhenii.parsing.optimisation.Optimiser._
-import com.yevhenii.parsing.utils.IoUtils._
 import com.yevhenii.parsing.FormulaParser.ParseError._
 
 object Main {
@@ -15,12 +14,12 @@ object Main {
     io.StdIn.readLine()
   }
 
-  def printFailure(e: Throwable): Unit = {
+  def printFailure(e: Throwable): IO[Unit] = IO.apply {
     println("Invalid expression:")
     println(Show[Throwable].show(e))
   }
 
-  def printSuccess(x: Expression): Unit = {
+  def printSuccess(x: Expression): IO[Unit] = IO.apply {
     println("Parsed successfully, parsing tree:")
     println(Show[Expression].show(x))
   }
@@ -28,11 +27,10 @@ object Main {
   val program: IO[Unit] = getInput
     .map(FormulaParser.apply)
     .flatMap(IO.fromEither)
-    .peek(x => IO(println(Show[Expression].show(x))))
+//    .peek(x => IO(println(Show[Expression].show(x))))
     .map(optimize)
-    .peek(x => IO(println(Show[Expression].show(x))))
     .map(balance)
-    .redeem(printFailure, printSuccess)
+    .redeemWith(printFailure, printSuccess)
 
   def runOnce(): Unit = {
     program.unsafeRunSync()

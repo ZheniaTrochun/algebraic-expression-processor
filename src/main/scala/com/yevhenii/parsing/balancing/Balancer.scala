@@ -7,14 +7,14 @@ import math.abs
 
 object Balancer {
 
-  // todo doest not work for 1/2/3/4/5/(6+7)/8*9
   def balance(exprTree: Expression): Expression = {
     exprTree match {
-      case x @ BinOperation(left, op, right) if shouldBalance(x) => balance(balanceBinary(BinOperation(balance(left), op, balance(right))))
-      case BinOperation(left, op, right) => BinOperation(balance(left), op, balance(right))
+      case x @ BinOperation(left, op, right) if shouldBalance(x) =>
+        balanceBinary(BinOperation(balance(left), op, balance(right)))
       case FuncCall(name, inner) => FuncCall(name, balance(inner))
       case BracketedExpression(inner) => BracketedExpression(balance(inner))
       case UnaryOperation(inner, op) => UnaryOperation(balance(inner), op)
+      case BinOperation(left, op, right) => BinOperation(balance(left), op, balance(right))
       case x => x
     }
   }
@@ -39,27 +39,22 @@ object Balancer {
 
   def shouldRotateLeft(tree: BinOperation): Boolean = tree match {
     case BinOperation(l @ BinOperation(_, lop, _), op, r) if size(l) - size(r) > 1 =>
-      (lop, op) match {
-        case (BinOperator("+"), BinOperator("+")) => true
-        case (BinOperator("-"), BinOperator("-")) => true
-        case (BinOperator("*"), BinOperator("*")) => true
-        case (BinOperator("-"), BinOperator("+")) => true
-        case (BinOperator("+"), BinOperator("-")) => true
-        case _ => false
-      }
+      checkOperations(lop, op)
     case _ => false
   }
 
   def shouldRotateRight(tree: BinOperation): Boolean = tree match {
     case BinOperation(l, op, r @ BinOperation(_, rop, _)) if size(r) - size(l) > 1 =>
-      (op, rop) match {
-        case (BinOperator("+"), BinOperator("+")) => true
-        case (BinOperator("-"), BinOperator("-")) => true
-        case (BinOperator("*"), BinOperator("*")) => true
-        case (BinOperator("-"), BinOperator("+")) => true
-        case (BinOperator("+"), BinOperator("-")) => true
-        case _ => false
-      }
+      checkOperations(op, rop)
+    case _ => false
+  }
+
+  def checkOperations(lop: BinOperator, rop: BinOperator): Boolean = (lop, rop) match {
+    case (BinOperator("+"), BinOperator("+")) => true
+    case (BinOperator("-"), BinOperator("-")) => true
+    case (BinOperator("*"), BinOperator("*")) => true
+    case (BinOperator("-"), BinOperator("+")) => true
+    case (BinOperator("+"), BinOperator("-")) => true
     case _ => false
   }
 
@@ -73,6 +68,4 @@ object Balancer {
       case UnaryOperation(x, _) => size(x)
     }
   }
-
-  def loop(curr: Expression, stack: List[Expression] = Nil): Expression = ???
 }
