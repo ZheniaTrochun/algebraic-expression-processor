@@ -1,6 +1,6 @@
 package com.yevhenii.parsing.optimisation
 
-import com.yevhenii.parsing.{BinOperation, BinOperator, BracketedExpression, Constant, Expression, FormulaParser, FuncCall, Number, UnaryOperation, UnaryOperator}
+import com.yevhenii.parsing._
 
 import scala.annotation.tailrec
 
@@ -13,12 +13,12 @@ object Optimiser {
   }
 
   def optimize(expr: Expression): Expression = expr match {
-    case x @ BinOperation(_, BinOperator("-"), _) => subtractReplace(x)
-    case BinOperation(left, BinOperator("/"), right) => divisionReplaceLoop(left, right :: Nil)
-    case BinOperation(left, op, right) => BinOperation(optimize(left), op, optimize(right))
-    case FuncCall(name, inner) => FuncCall(name, optimize(inner))
-    case BracketedExpression(inner) => BracketedExpression(optimize(inner))
-    case UnaryOperation(inner, op) => UnaryOperation(optimize(inner), op)
+    case x @ BinOperation(_, BinOperator("-"), _)     => subtractReplace(x)
+    case BinOperation(left, BinOperator("/"), right)  => divisionReplaceLoop(left, right :: Nil)
+    case BinOperation(left, op, right)                => BinOperation(optimize(left), op, optimize(right))
+    case FuncCall(name, inner)                        => FuncCall(name, optimize(inner))
+    case BracketedExpression(inner)                   => BracketedExpression(optimize(inner))
+    case UnaryOperation(inner, op)                    => UnaryOperation(optimize(inner), op)
     case x => x
   }
 
@@ -30,7 +30,8 @@ object Optimiser {
       BinOperation(left, BinOperator("/"), join(right :: stackExpr))
     case BinOperation(left, BinOperator("/"), right) =>
       divisionReplaceLoop(left, right :: stackExpr)
-    case x => BinOperation(x, BinOperator("/"), join(stackExpr))
+    case x =>
+      BinOperation(x, BinOperator("/"), join(stackExpr))
   }
 
   def join(stackExpr: List[Expression]): Expression = {

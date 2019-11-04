@@ -17,12 +17,18 @@ case class UnaryOperation(expr: Expression, op: UnaryOperator) extends Expressio
 object Expression {
   implicit val showable: Show[Expression] = new Show[Expression] {
     def showLoop(x: Expression, n: Int): String = x match {
-      case Number(value) => tabs(n) + s"$value\n"
-      case Constant(name) => tabs(n) + s"$name\n"
-      case BinOperation(left, BinOperator(op), right) => showLoop(left, n + 1) + tabs(n) +  op + "\n" + showLoop(right, n + 1)
-      case FuncCall(Constant(name), arg) => tabs(n) + s"$name(\n${showLoop(arg, n + 1)}" + tabs(n) + ")\n"
-      case BracketedExpression(expr) => tabs(n) + s"(\n${showLoop(expr, n + 1)}" + tabs(n) + ")\n"
-      case UnaryOperation(expr, UnaryOperator(op)) => tabs(n) + s"$op(\n${showLoop(expr, n + 1)}" + tabs(n) + ")\n"
+      case Number(value) =>
+        tabs(n) + s"$value\n"
+      case Constant(name) =>
+        tabs(n) + s"$name\n"
+      case BinOperation(left, BinOperator(op), right) =>
+        showLoop(left, n + 1) + tabs(n) +  op + "\n" + showLoop(right, n + 1)
+      case FuncCall(Constant(name), arg) =>
+        tabs(n) + s"$name(\n${showLoop(arg, n + 1)}" + tabs(n) + ")\n"
+      case BracketedExpression(expr) =>
+        tabs(n) + s"(\n${showLoop(expr, n + 1)}" + tabs(n) + ")\n"
+      case UnaryOperation(expr, UnaryOperator(op)) =>
+        tabs(n) + s"$op(\n${showLoop(expr, n + 1)}" + tabs(n) + ")\n"
     }
 
     def tabs(n: Int): String = "\t" * n

@@ -11,10 +11,14 @@ object Balancer {
     exprTree match {
       case x @ BinOperation(left, op, right) if shouldBalance(x) =>
         balanceBinary(BinOperation(balance(left), op, balance(right)))
-      case FuncCall(name, inner) => FuncCall(name, balance(inner))
-      case BracketedExpression(inner) => BracketedExpression(balance(inner))
-      case UnaryOperation(inner, op) => UnaryOperation(balance(inner), op)
-      case BinOperation(left, op, right) => BinOperation(balance(left), op, balance(right))
+      case FuncCall(name, inner) =>
+        FuncCall(name, balance(inner))
+      case BracketedExpression(inner) =>
+        BracketedExpression(balance(inner))
+      case UnaryOperation(inner, op) =>
+        UnaryOperation(balance(inner), op)
+      case BinOperation(left, op, right) =>
+        BinOperation(balance(left), op, balance(right))
       case x => x
     }
   }
