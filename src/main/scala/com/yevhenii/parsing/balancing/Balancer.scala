@@ -7,19 +7,23 @@ import math.abs
 
 object Balancer {
 
-  def balance(exprTree: Expression): Expression = {
-    exprTree match {
-      case x @ BinOperation(left, op, right) if shouldBalance(x) =>
-        balanceBinary(BinOperation(balance(left), op, balance(right)))
-      case FuncCall(name, inner) =>
-        FuncCall(name, balance(inner))
-      case BracketedExpression(inner) =>
-        BracketedExpression(balance(inner))
-      case UnaryOperation(inner, op) =>
-        UnaryOperation(balance(inner), op)
-      case BinOperation(left, op, right) =>
-        BinOperation(balance(left), op, balance(right))
-      case x => x
+  def balance(exprTree: Expression, guard: Int = 0): Expression = {
+    if (guard == 1000) exprTree
+    else {
+      exprTree match {
+        case x @ BinOperation(left, op, right) if shouldBalance(x) =>
+  //        balanceBinary(BinOperation(balance(left), op, balance(right)))
+          balance(balanceBinary(BinOperation(balance(left, guard + 1), op, balance(right, guard + 1))), guard + 1)
+        case FuncCall(name, inner) =>
+          FuncCall(name, balance(inner, guard + 1))
+        case BracketedExpression(inner) =>
+          BracketedExpression(balance(inner, guard + 1))
+        case UnaryOperation(inner, op) =>
+          UnaryOperation(balance(inner, guard + 1), op)
+        case BinOperation(left, op, right) =>
+          BinOperation(balance(left, guard + 1), op, balance(right, guard + 1))
+        case x => x
+      }
     }
   }
 

@@ -28,8 +28,8 @@ object Main {
     .map(FormulaParser.apply)
     .flatMap(IO.fromEither)
 //    .peek(x => IO(println(Show[Expression].show(x))))
-    .map(optimize)
-    .map(balance)
+    .map(x => optimize(x))
+    .map(x => balance(x))
     .redeemWith(printFailure, printSuccess)
 
   def runOnce(): Unit = {

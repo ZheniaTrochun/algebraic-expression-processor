@@ -13,12 +13,18 @@ object Optimiser {
   }
 
   def optimize(expr: Expression): Expression = expr match {
-    case x @ BinOperation(_, BinOperator("-"), _)     => subtractReplace(x)
-    case BinOperation(left, BinOperator("/"), right)  => divisionReplaceLoop(left, right :: Nil)
-    case BinOperation(left, op, right)                => BinOperation(optimize(left), op, optimize(right))
-    case FuncCall(name, inner)                        => FuncCall(name, optimize(inner))
-    case BracketedExpression(inner)                   => BracketedExpression(optimize(inner))
-    case UnaryOperation(inner, op)                    => UnaryOperation(optimize(inner), op)
+    case x @ BinOperation(left, BinOperator("-"), right) =>
+      subtractReplace(BinOperation(optimize(left), BinOperator("-"), optimize(right)))
+    case BinOperation(left, BinOperator("/"), right) =>
+      divisionReplaceLoop(left, right :: Nil)
+    case BinOperation(left, op, right) =>
+      BinOperation(optimize(left), op, optimize(right))
+    case FuncCall(name, inner) =>
+      FuncCall(name, optimize(inner))
+    case BracketedExpression(inner) =>
+      BracketedExpression(optimize(inner))
+    case UnaryOperation(inner, op) =>
+      UnaryOperation(optimize(inner), op)
     case x => x
   }
 
