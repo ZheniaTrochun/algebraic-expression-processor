@@ -6,14 +6,14 @@ import scala.annotation.tailrec
 
 object Optimiser {
 
-  def subsructReplace(expr: Expression): Expression = expr match {
+  def subtractReplace(expr: Expression): Expression = expr match {
     case BinOperation(left, BinOperator("-"), right) =>
-      BinOperation(left, BinOperator("+"), UnaryOperation(subsructReplace(right), UnaryOperator("-")))
+      BinOperation(left, BinOperator("+"), UnaryOperation(subtractReplace(right), UnaryOperator("-")))
     case x => x
   }
 
   def optimize(expr: Expression): Expression = expr match {
-    case x @ BinOperation(_, BinOperator("-"), _) => subsructReplace(x)
+    case x @ BinOperation(_, BinOperator("-"), _) => subtractReplace(x)
     case BinOperation(left, BinOperator("/"), right) => divisionReplaceLoop(left, right :: Nil)
     case BinOperation(left, op, right) => BinOperation(optimize(left), op, optimize(right))
     case FuncCall(name, inner) => FuncCall(name, optimize(inner))
