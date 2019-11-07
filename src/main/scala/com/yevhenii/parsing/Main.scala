@@ -6,6 +6,7 @@ import com.yevhenii.parsing.Expression._
 import com.yevhenii.parsing.balancing.Balancer._
 import com.yevhenii.parsing.optimisation.Optimiser._
 import com.yevhenii.parsing.FormulaParser.ParseError._
+import com.yevhenii.parsing.utils.IoUtils._
 
 object Main {
 
@@ -27,7 +28,6 @@ object Main {
   val program: IO[Unit] = getInput
     .map(FormulaParser.apply)
     .flatMap(IO.fromEither)
-//    .peek(x => IO(println(Show[Expression].show(x))))
     .map(x => optimize(x))
     .map(x => balance(x))
     .redeemWith(printFailure, printSuccess)
