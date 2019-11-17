@@ -5,6 +5,7 @@ import cats.effect.IO
 import com.yevhenii.parsing.Expression._
 import com.yevhenii.parsing.balancing.Balancer._
 import com.yevhenii.parsing.optimisation.Optimiser._
+import com.yevhenii.parsing.optimisation.Simplifier._
 import com.yevhenii.parsing.FormulaParser.ParseError._
 import com.yevhenii.parsing.utils.IoUtils._
 
@@ -29,7 +30,14 @@ object Main {
     .map(FormulaParser.apply)
     .flatMap(IO.fromEither)
     .map(x => optimize(x))
+//    .peek(_ => IO(println("optimized:")))
+//    .peek(x => IO(println(Show[Expression].show(x))))
+    .map(x => simplify(x))
+//    .peek(_ => IO(println("simplified:")))
+//    .peek(x => IO(println(Show[Expression].show(x))))
     .map(x => balance(x))
+//    .peek(_ => IO(println("balanced:")))
+//    .peek(x => IO(println(Show[Expression].show(x))))
     .redeemWith(printFailure, printSuccess)
 
   def runOnce(): Unit = {

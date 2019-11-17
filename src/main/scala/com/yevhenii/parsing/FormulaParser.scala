@@ -41,7 +41,7 @@ object FormulaParser extends RegexParsers with PackratParsers {
 
   object ParseError {
     implicit val errorShow: Show[Throwable] = new Show[Throwable] {
-      override def show(t: Throwable): String = t.getMessage
+      override def show(t: Throwable): String = s"${t.toString}\n${t.getStackTrace.mkString("\t", "\n\t", "\n")}"
     }
   }
 }

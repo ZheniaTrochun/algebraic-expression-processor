@@ -8,7 +8,7 @@ object Optimiser {
 
   def subtractReplace(expr: Expression): Expression = expr match {
     case BinOperation(left, BinOperator("-"), right) =>
-      BinOperation(left, BinOperator("+"), UnaryOperation(subtractReplace(right), UnaryOperator("-")))
+      BinOperation(subtractReplace(left), BinOperator("+"), UnaryOperation(subtractReplace(right), UnaryOperator("-")))
     case x => x
   }
 
@@ -16,7 +16,7 @@ object Optimiser {
     case x @ BinOperation(left, BinOperator("-"), right) =>
       subtractReplace(BinOperation(optimize(left), BinOperator("-"), optimize(right)))
     case BinOperation(left, BinOperator("/"), right) =>
-      divisionReplaceLoop(left, right :: Nil)
+      divisionReplaceLoop(optimize(left), optimize(right) :: Nil)
     case BinOperation(left, op, right) =>
       BinOperation(optimize(left), op, optimize(right))
     case FuncCall(name, inner) =>
