@@ -2,7 +2,7 @@ package com.yevhenii.parsing
 
 import cats.Show
 import cats.effect.IO
-import com.yevhenii.parsing.Expression._
+import com.yevhenii.parsing.Expression.asTreeShowable
 import com.yevhenii.parsing.balancing.Balancer._
 import com.yevhenii.parsing.optimisation.Optimiser._
 import com.yevhenii.parsing.optimisation.Simplifier._

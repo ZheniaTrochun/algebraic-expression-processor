@@ -16,7 +16,8 @@ object Optimiser {
     case x @ BinOperation(left, BinOperator("-"), right) =>
       subtractReplace(BinOperation(optimize(left), BinOperator("-"), optimize(right)))
     case BinOperation(left, BinOperator("/"), right) =>
-      divisionReplaceLoop(optimize(left), optimize(right) :: Nil)
+//      divisionReplaceLoop(optimize(left), optimize(right) :: Nil)
+      divisionReplaceLoop(left, right :: Nil) // todo
     case BinOperation(left, op, right) =>
       BinOperation(optimize(left), op, optimize(right))
     case FuncCall(name, inner) =>

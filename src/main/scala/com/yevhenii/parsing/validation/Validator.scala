@@ -112,7 +112,8 @@ object Validator {
 //      }
 //    }
 
-    validationSeq.map(v => v.validate(expression)).fold[Result](Monoid.empty)(Monoid.combine(_, _))
+//    validationSeq.map(v => v.validate(expression)).fold[Result](Monoid.empty)(Monoid.combine(_, _))
+    Monoid[Result].empty
   }
 
   implicit def resultMonoid: Monoid[Result] = new Monoid[Result] {

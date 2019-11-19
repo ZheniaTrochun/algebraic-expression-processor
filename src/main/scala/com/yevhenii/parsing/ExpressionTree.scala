@@ -15,7 +15,7 @@ case class BracketedExpression(expr: Expression) extends Expression
 case class UnaryOperation(expr: Expression, op: UnaryOperator) extends Expression
 
 object Expression {
-  implicit val showable: Show[Expression] = new Show[Expression] {
+  implicit val asTreeShowable: Show[Expression] = new Show[Expression] {
     def showLoop(x: Expression, n: Int): String = x match {
       case Number(value) =>
         tabs(n) + s"$value\n"
@@ -27,7 +27,6 @@ object Expression {
         tabs(n) + s"$name(\n${showLoop(arg, n + 1)}" + tabs(n) + ")\n"
       case BracketedExpression(expr) =>
         tabs(n) + s"(\n${showLoop(expr, n + 1)}" + tabs(n) + ")\n"
-//        showLoop(expr, n)
       case UnaryOperation(expr, UnaryOperator(op)) =>
         tabs(n) + s"$op(\n${showLoop(expr, n + 1)}" + tabs(n) + ")\n"
     }
@@ -37,7 +36,24 @@ object Expression {
     override def show(x: Expression): String = showLoop(x, 0)
   }
 
+  implicit val asExpressionShowable: Show[Expression] = new Show[Expression] {
+    override def show(x: Expression): String = x match {
+      case Number(value) =>
+        s"$value"
+      case Constant(name) =>
+        s"$name"
+      case BinOperation(left, BinOperator(op), right) =>
+        show(left) + op + show(right)
+      case FuncCall(Constant(name), arg) =>
+        s"$name(${show(arg)}"
+      case BracketedExpression(expr) =>
+        s"(${show(expr)})"
+      case UnaryOperation(expr, UnaryOperator(op)) =>
+        s"$op(${show(expr)})"
+    }
+  }
+
   implicit class expressionShowable(x: Expression) {
-    def show(): String = Show[Expression].show(x)
+    def show(): String = asTreeShowable.show(x)
   }
 }
