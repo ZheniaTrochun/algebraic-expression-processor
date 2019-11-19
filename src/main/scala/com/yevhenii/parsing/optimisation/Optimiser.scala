@@ -1,36 +1,34 @@
 package com.yevhenii.parsing.optimisation
 
+import cats.{Applicative, Id, Monad}
 import com.yevhenii.parsing._
 
 import scala.annotation.tailrec
 
 object Optimiser {
 
-  def subtractReplace(expr: Expression): Expression = expr match {
-    case BinOperation(left, BinOperator("-"), right) =>
-      BinOperation(subtractReplace(left), BinOperator("+"), UnaryOperation(subtractReplace(right), UnaryOperator("-")))
-    case x => x
+  def optimize(expr: Expression): Expression =
+    expr.traverse(subtractReplace).traverse(divisionReplace)
+
+  def subtractReplace(expr: Expression): Id[Expression] = Monad[Id].pure {
+    expr match {
+      case BinOperation(left, BinOperator("-"), right) =>
+        BinOperation(left, BinOperator("+"), UnaryOperation(right, UnaryOperator("-")))
+      case x => x
+    }
   }
 
-  def optimize(expr: Expression): Expression = expr match {
-    case x @ BinOperation(left, BinOperator("-"), right) =>
-      subtractReplace(BinOperation(optimize(left), BinOperator("-"), optimize(right)))
-    case BinOperation(left, BinOperator("/"), right) =>
-//      divisionReplaceLoop(optimize(left), optimize(right) :: Nil)
-      divisionReplaceLoop(left, right :: Nil) // todo
-    case BinOperation(left, op, right) =>
-      BinOperation(optimize(left), op, optimize(right))
-    case FuncCall(name, inner) =>
-      FuncCall(name, optimize(inner))
-    case BracketedExpression(inner) =>
-      BracketedExpression(optimize(inner))
-    case UnaryOperation(inner, op) =>
-      UnaryOperation(optimize(inner), op)
-    case x => x
+  def divisionReplace(expr: Expression): Id[Expression] = Monad[Id].pure {
+    expr match {
+      case BinOperation(left, BinOperator("/"), right) => // todo suspicious
+        divisionReplaceLoop(left, right :: Nil)
+      case x => x
+    }
   }
 
+  // todo perform one traversal
   @tailrec
-  def divisionReplaceLoop(expr: Expression, stackExpr: List[Expression]): Expression = expr match {
+  private def divisionReplaceLoop(expr: Expression, stackExpr: List[Expression]): Expression = expr match {
     case BinOperation(left @ (Number(_) | Constant(_) | FuncCall(_, _) | BracketedExpression(_) | UnaryOperation(_, _)), BinOperator("/"), right) =>
       BinOperation(left, BinOperator("/"), join(right :: stackExpr))
     case BinOperation(left @ BinOperation(_, BinOperator("-") | BinOperator("+") | BinOperator("*"), _), BinOperator("/"), right) =>
@@ -41,14 +39,30 @@ object Optimiser {
       BinOperation(x, BinOperator("/"), join(stackExpr))
   }
 
-  def join(stackExpr: List[Expression]): Expression = {
+  private def join(stackExpr: List[Expression]): Expression = {
     stackExpr.size match {
       case 0 =>
         Number(1)
       case 1 =>
         stackExpr.head
       case _ =>
-        BracketedExpression(stackExpr.reduce((left, right) => BinOperation(left, BinOperator("*"), right)))
+        BracketedExpression(flatten(
+          stackExpr.reduce((left, right) => BinOperation(left, BinOperator("*"), right))
+        ))
     }
+  }
+
+  private def flatten(expression: Expression): Expression = expression match {
+    case BinOperation(BracketedExpression(BinOperation(ll, BinOperator("*"), lr)), BinOperator("*"), right) =>
+      BinOperation(BinOperation(flatten(ll), BinOperator("*"), flatten(lr)), BinOperator("*"), flatten(right))
+    case BinOperation(left, BinOperator("*"), BracketedExpression(BinOperation(rl, BinOperator("*"), rr))) =>
+      BinOperation(flatten(left), BinOperator("*"), BinOperation(flatten(rl), BinOperator("*"), flatten(rr)))
+
+    case BracketedExpression(BinOperation(BracketedExpression(BinOperation(ll, BinOperator("*"), lr)), BinOperator("*"), right)) =>
+      BinOperation(BinOperation(flatten(ll), BinOperator("*"), flatten(lr)), BinOperator("*"), flatten(right))
+    case BracketedExpression(BinOperation(left, BinOperator("*"), BracketedExpression(BinOperation(rl, BinOperator("*"), rr)))) =>
+      BinOperation(flatten(left), BinOperator("*"), BinOperation(flatten(rl), BinOperator("*"), flatten(rr)))
+
+    case x => x
   }
 }

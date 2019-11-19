@@ -1,8 +1,43 @@
 package com.yevhenii.parsing
 
-import cats.Show
+import cats.{Monad, Show}
 
-sealed trait Expression
+import scala.language.higherKinds
+
+sealed trait Expression {
+  def traverse[F[_]: Monad](f: Expression => F[Expression]): F[Expression] = this match {
+    case number: Number =>
+      f(number)
+    case constant: Constant =>
+      f(constant)
+    case BinOperation(left, op, right) =>
+      monadFlatMap2(left.traverse(f), right.traverse(f))(BinOperation(_, op, _))(f)
+    case FuncCall(name, expr) =>
+      monadFlatMap(expr.traverse(f))(FuncCall(name, _))(f)
+    case BracketedExpression(expr) =>
+      monadFlatMap(expr.traverse(f))(BracketedExpression.apply)(f)
+    case UnaryOperation(expr, op) =>
+      monadFlatMap(expr.traverse(f))(UnaryOperation(_, op))(f)
+  }
+
+  def monadFlatMap[F[_]: Monad](
+    fa: F[Expression])(
+    g: Expression => Expression)(
+    f: Expression => F[Expression]
+  ): F[Expression] = {
+
+    Monad[F].flatMap(Monad[F].map(fa)(g))(f)
+  }
+
+  def monadFlatMap2[F[_]: Monad](
+    fl: F[Expression], fr: F[Expression])(
+    g: (Expression, Expression) => Expression)(
+    f: Expression => F[Expression]
+  ): F[Expression] = {
+
+    Monad[F].flatMap(Monad[F].map2(fl, fr)(g))(f)
+  }
+}
 
 case class BinOperator(operator: String)
 case class UnaryOperator(operator: String)
