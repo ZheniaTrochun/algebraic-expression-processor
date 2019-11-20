@@ -29,7 +29,7 @@ object Balancer {
 
   def shouldBalance(exprTree: Expression): Boolean = {
     exprTree match {
-      case BinOperation(_, BinOperator("/"), _) => false
+      case BinOperation(_, BinOperator('/'), _) => false
       case BinOperation(left, _, right) => abs(size(left) - size(right)) > 1
       case _ => false
     }
@@ -58,11 +58,11 @@ object Balancer {
   }
 
   def checkOperations(lop: BinOperator, rop: BinOperator): Boolean = (lop, rop) match {
-    case (BinOperator("+"), BinOperator("+")) => true
-    case (BinOperator("-"), BinOperator("-")) => true
-    case (BinOperator("*"), BinOperator("*")) => true
-    case (BinOperator("-"), BinOperator("+")) => true
-    case (BinOperator("+"), BinOperator("-")) => true
+    case (BinOperator('+'), BinOperator('+')) => true
+    case (BinOperator('-'), BinOperator('-')) => true
+    case (BinOperator('*'), BinOperator('*')) => true
+    case (BinOperator('-'), BinOperator('+')) => true
+    case (BinOperator('+'), BinOperator('-')) => true
     case _ => false
   }
 

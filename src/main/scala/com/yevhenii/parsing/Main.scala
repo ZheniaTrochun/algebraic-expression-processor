@@ -2,14 +2,23 @@ package com.yevhenii.parsing
 
 import cats.Show
 import cats.effect.IO
-import com.yevhenii.parsing.Expression.asTreeShowable
+import com.yevhenii.parsing.Expression.asExpressionShowable
 import com.yevhenii.parsing.balancing.Balancer._
 import com.yevhenii.parsing.optimisation.Optimiser._
 import com.yevhenii.parsing.optimisation.Simplifier._
 import com.yevhenii.parsing.FormulaParser.ParseError._
 import com.yevhenii.parsing.utils.IoUtils._
+import reftree.render.{Renderer, RenderingOptions}
+import reftree.diagram.Diagram
+import java.nio.file.Paths
 
 object Main {
+
+  val renderer = Renderer(
+    renderingOptions = RenderingOptions(density = 75),
+    directory = Paths.get("./visualization"),
+    format = "pdf"
+  )
 
   val getInput: IO[String] = IO.apply {
     println("Enter expression:")
@@ -22,22 +31,27 @@ object Main {
   }
 
   def printSuccess(x: Expression): IO[Unit] = IO.apply {
-    println("Parsed successfully, parsing tree:")
-    println(Show[Expression].show(x))
+    println("Parsed successfully")
+//    println(s"Result expression: ${Show[Expression].show(x)}")
+    println("Parsing tree: ./visualization/balanced.pdf")
+  }
+
+  def visualize(stage: String)(expression: Expression): IO[Unit] = IO.apply {
+    import renderer._
+    Diagram.sourceCodeCaption(expression)
+      .withCaption(Show[Expression].show(expression))
+      .render(stage)
   }
 
   val program: IO[Unit] = getInput
     .map(FormulaParser.apply)
     .flatMap(IO.fromEither)
     .map(x => optimize(x))
-//    .peek(_ => IO(println("optimized:")))
-//    .peek(x => IO(println(Show[Expression].show(x))))
+    .peek(visualize("optimized"))
     .map(x => simplify(x))
-//    .peek(_ => IO(println("simplified:")))
-//    .peek(x => IO(println(Show[Expression].show(x))))
+    .peek(visualize("opened_parenthesis"))
     .map(x => balance(x))
-//    .peek(_ => IO(println("balanced:")))
-//    .peek(x => IO(println(Show[Expression].show(x))))
+    .peek(visualize("balanced"))
     .redeemWith(printFailure, printSuccess)
 
   def runOnce(): Unit = {

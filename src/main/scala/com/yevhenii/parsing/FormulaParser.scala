@@ -23,7 +23,7 @@ object FormulaParser extends RegexParsers with PackratParsers {
   lazy val expression: PackratParser[Expression] = expression ~ ("+" | "-") ~ term ^^ binOperation | term
 
   def binOperation(p: Expression ~ String ~ Expression): BinOperation = p match {
-    case left ~ operator ~ right => BinOperation(left, BinOperator(operator), right)
+    case left ~ operator ~ right => BinOperation(left, BinOperator(operator.head), right)
   }
 
   def apply(expressionStr: String): Either[ParseError, Expression] = {
@@ -40,8 +40,7 @@ object FormulaParser extends RegexParsers with PackratParsers {
   }
 
   object ParseError {
-    implicit val errorShow: Show[Throwable] = new Show[Throwable] {
-      override def show(t: Throwable): String = s"${t.toString}\n${t.getStackTrace.mkString("\t", "\n\t", "\n")}"
-    }
+    implicit val errorShow: Show[Throwable] = (t: Throwable) =>
+      s"${t.toString}\n${t.getStackTrace.mkString("\t", "\n\t", "\n")}"
   }
 }

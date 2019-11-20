@@ -20,7 +20,7 @@ sealed trait Expression {
       monadFlatMap(expr.traverse(f))(UnaryOperation(_, op))(f)
   }
 
-  def monadFlatMap[F[_]: Monad](
+  private def monadFlatMap[F[_]: Monad](
     fa: F[Expression])(
     g: Expression => Expression)(
     f: Expression => F[Expression]
@@ -29,7 +29,7 @@ sealed trait Expression {
     Monad[F].flatMap(Monad[F].map(fa)(g))(f)
   }
 
-  def monadFlatMap2[F[_]: Monad](
+  private def monadFlatMap2[F[_]: Monad](
     fl: F[Expression], fr: F[Expression])(
     g: (Expression, Expression) => Expression)(
     f: Expression => F[Expression]
@@ -39,15 +39,18 @@ sealed trait Expression {
   }
 }
 
-case class BinOperator(operator: String)
-case class UnaryOperator(operator: String)
+sealed trait Operator
+case class BinOperator(operator: Char) extends Operator
+case class UnaryOperator(operator: Char) extends Operator
 
 case class Number(value: Double) extends Expression
-case class Constant(name: String) extends Expression
+case class Constant(name: String) extends Expression {
+  def deduplicate(): Expression = Constant(new String(name.getBytes))
+}
 case class BinOperation(left: Expression, operator: BinOperator, right: Expression) extends Expression
+case class UnaryOperation(expr: Expression, op: UnaryOperator) extends Expression
 case class FuncCall(funcName: Constant, argument: Expression) extends Expression
 case class BracketedExpression(expr: Expression) extends Expression
-case class UnaryOperation(expr: Expression, op: UnaryOperator) extends Expression
 
 object Expression {
   implicit val asTreeShowable: Show[Expression] = new Show[Expression] {

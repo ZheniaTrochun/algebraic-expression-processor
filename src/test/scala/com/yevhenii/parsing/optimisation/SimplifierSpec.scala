@@ -14,7 +14,7 @@ class SimplifierSpec extends WordSpec with Matchers {
 //        "(a+b+2)/(a-3*x)*123" -> "(a+b+2.0)/(a+-(3.0*x))*123.0", // todo
         "(a+b)/(c+d+e+f)" -> "a/(c+d+e+f)+b/(c+d+e+f)",
         "(a+b)/(c+d+e+f)/g/h/i" -> "a/((c+d+e+f)*g*h*i)+b/((c+d+e+f)*g*h*i)",
-//        "(a+b)/(c+d+e+f)/g/h/i" -> "a/(c*g*h*i+d*g*h*i+e*g*h*i+f*g*h*i)+b/(c*g*h*i+d*g*h*i+e*g*h*i+f*g*h*i)", // todo correct
+        "(a+b)/(c+d+e+f)/g/h/i" -> "a/(c*g*h*i+d*g*h*i+e*g*h*i+f*g*h*i)+b/(c*g*h*i+d*g*h*i+e*g*h*i+f*g*h*i)", // todo correct
         "a/b/c/d/e/f" -> "a/(b*c*d*e*f)"
       )
 
