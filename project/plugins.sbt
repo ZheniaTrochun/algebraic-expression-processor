@@ -1,0 +1,1 @@
+//addSbtPlugin("me.lessis" % "sbt-bintray" % "0.3.0")

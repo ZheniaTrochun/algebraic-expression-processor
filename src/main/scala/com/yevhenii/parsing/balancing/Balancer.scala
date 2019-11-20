@@ -7,7 +7,9 @@ import math.abs
 
 object Balancer {
 
-  def balance(exprTree: Expression, guard: Int = 0): Expression = {
+  def balance(expression: Expression): Expression = balance(expression, 0)
+  
+  private def balance(exprTree: Expression, guard: Int): Expression = {
     if (guard == 1000) exprTree
     else {
       exprTree match {
@@ -27,7 +29,7 @@ object Balancer {
     }
   }
 
-  def shouldBalance(exprTree: Expression): Boolean = {
+  private def shouldBalance(exprTree: Expression): Boolean = {
     exprTree match {
       case BinOperation(_, BinOperator('/'), _) => false
       case BinOperation(left, _, right) => abs(size(left) - size(right)) > 1
@@ -35,7 +37,7 @@ object Balancer {
     }
   }
 
-  def balanceBinary(root: BinOperation): Expression = root match {
+  private def balanceBinary(root: BinOperation): Expression = root match {
     case BinOperation(BinOperation(left, leftOp, leftRight), op, rightRoot) if shouldRotateLeft(root) =>
       BinOperation(left, leftOp, BinOperation(leftRight, op, rightRoot))
 
@@ -45,19 +47,19 @@ object Balancer {
     case _ => root
   }
 
-  def shouldRotateLeft(tree: BinOperation): Boolean = tree match {
+  private def shouldRotateLeft(tree: BinOperation): Boolean = tree match {
     case BinOperation(l @ BinOperation(_, lop, _), op, r) if size(l) - size(r) > 1 =>
       checkOperations(lop, op)
     case _ => false
   }
 
-  def shouldRotateRight(tree: BinOperation): Boolean = tree match {
+  private def shouldRotateRight(tree: BinOperation): Boolean = tree match {
     case BinOperation(l, op, r @ BinOperation(_, rop, _)) if size(r) - size(l) > 1 =>
       checkOperations(op, rop)
     case _ => false
   }
 
-  def checkOperations(lop: BinOperator, rop: BinOperator): Boolean = (lop, rop) match {
+  private def checkOperations(lop: BinOperator, rop: BinOperator): Boolean = (lop, rop) match {
     case (BinOperator('+'), BinOperator('+')) => true
     case (BinOperator('-'), BinOperator('-')) => true
     case (BinOperator('*'), BinOperator('*')) => true
@@ -66,7 +68,7 @@ object Balancer {
     case _ => false
   }
 
-  def size(exprTree: Expression): Int = {
+  private def size(exprTree: Expression): Int = {
     exprTree match {
       case Number(_) => 1
       case Constant(_) => 1

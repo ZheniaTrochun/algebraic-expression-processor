@@ -46,9 +46,9 @@ object Main {
   val program: IO[Unit] = getInput
     .map(FormulaParser.apply)
     .flatMap(IO.fromEither)
-    .map(x => optimize(x))
+    .map(optimize)
     .peek(visualize("optimized"))
-    .map(x => simplify(x))
+    .map(simplify)
     .peek(visualize("opened_parenthesis"))
     .map(x => balance(x))
     .peek(visualize("balanced"))

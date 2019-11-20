@@ -1,5 +1,6 @@
 package com.yevhenii.parsing.optimisation
 
+import cats.{Id, Monad}
 import com.yevhenii.parsing._
 
 import scala.annotation.tailrec
@@ -7,64 +8,84 @@ import scala.annotation.tailrec
 object Simplifier {
 
   def shouldBeSimplified(tree: Expression): Boolean = tree match {
-    case _: Number                                                  => false
-    case _: Constant                                                => false
-    case UnaryOperation(_: BinOperation, UnaryOperator('-'))        => true
-    case UnaryOperation(_: UnaryOperation, UnaryOperator('-'))      => true
-    case UnaryOperation(_: BracketedExpression, UnaryOperator('-')) => true
-    case UnaryOperation(_, _)                                       => false
-    case FuncCall(_, expr)                                          => shouldBeSimplified(expr)
-    case BinOperation(_: BracketedExpression, _, _)                 => true
-    case BinOperation(_, BinOperator('*'), _: BracketedExpression)  => true
-    case BinOperation(_, BinOperator('+'), _: BracketedExpression)  => true
-    case BinOperation(_, BinOperator('-'), _: BracketedExpression)  => true
-    case BinOperation(_, BinOperator('/'), _: BracketedExpression)  => false
-    case BinOperation(left, _, right)                               => shouldBeSimplified(left) || shouldBeSimplified(right)
-    case BracketedExpression(_)                                     => true
+    case _: Number                                                              => false
+    case _: Constant                                                            => false
+    case UnaryOperation(_: BinOperation, UnaryOperator('-'))                    => true
+    case UnaryOperation(_: UnaryOperation, UnaryOperator('-'))                  => true
+    case UnaryOperation(_: BracketedExpression, UnaryOperator('-'))             => true
+    case UnaryOperation(_, _)                                                   => false
+    case FuncCall(_, expr)                                                      => shouldBeSimplified(expr)
+    case BinOperation(_: BracketedExpression, _, _)                             => true
+    case BinOperation(_, BinOperator('*' | '+' | '-'), _: BracketedExpression)  => true
+    case BinOperation(_, BinOperator('/'), _: BracketedExpression)              => false
+    case BinOperation(left, _, right)                                           => shouldBeSimplified(left) || shouldBeSimplified(right)
+    case BracketedExpression(inner)                                             => shouldBeSimplified(inner)
   }
 
   @tailrec
   def simplify(tree: Expression): Expression = {
-    if (shouldBeSimplified(tree)) simplify(simplifyLoop(tree))
-    else flattenBrackets(tree)
+    if (shouldBeSimplified(tree)) simplify {
+      tree.traverse(simplifyMinuses)
+        .traverse(simplifyMultiplication)
+        .traverse(simplifyDivision)
+        .traverse(removeUnnecessaryBrackets)
+    } else {
+      flattenBrackets(tree)
+    }
   }
 
-  def simplifyLoop(tree: Expression): Expression = tree match {
-    case BracketedExpression(expr) => expr
+  private def simplifyMinuses(expression: Expression): Id[Expression] = Monad[Id].pure {
+    expression match {
+      case UnaryOperation(expr: BinOperation , UnaryOperator('-')) =>
+        openUnaryMinus(expr)
+      case UnaryOperation(expr: UnaryOperation , UnaryOperator('-')) =>
+        openUnaryMinus(expr)
+      case UnaryOperation(expr: BracketedExpression , UnaryOperator('-')) =>
+        openUnaryMinus(expr)
 
-    case UnaryOperation(expr: BinOperation , UnaryOperator('-')) =>
-      openUnaryMinus(expr)
-    case UnaryOperation(expr: UnaryOperation , UnaryOperator('-')) =>
-      openUnaryMinus(expr)
-    case UnaryOperation(expr: BracketedExpression , UnaryOperator('-')) =>
-      openUnaryMinus(expr)
+      case Constant(name) => Constant(new String(name.getBytes))
+      case x => x
+    }
+  }
 
-    case BinOperation(BracketedExpression(left), BinOperator('*'), right) =>
-      BracketedExpression(openMultiplication(left, right))
-    case BinOperation(left, BinOperator('*'), BracketedExpression(right)) =>
-      BracketedExpression(openMultiplication(right, left))
+  private def simplifyMultiplication(expression: Expression): Id[Expression] = {
+    expression match {
+      case BinOperation(BracketedExpression(left), BinOperator('*'), right) =>
+        BracketedExpression(openMultiplication(left, right))
+      case BinOperation(left, BinOperator('*'), BracketedExpression(right)) =>
+        BracketedExpression(openMultiplication(right, left))
 
-//    case BinOperation(BracketedExpression(left), BinOperator('/'), BracketedExpression(right)) =>
-//      BracketedExpression(openDivision(left, BracketedExpression(simplifyLoop(right))))
-    case BinOperation(BracketedExpression(left), BinOperator('/'), right) =>
-      BracketedExpression(openDivision(left, right))
-    case BinOperation(left, BinOperator('/'), right) =>
-      BinOperation(simplifyLoop(left), BinOperator('/'), simplifyLoop(right))
+      case Constant(name) => Constant(new String(name.getBytes))
+      case x => x
+    }
+  }
 
-    case BinOperation(left, BinOperator('+'), right) =>
-      BinOperation(simplifyLoop(left), BinOperator('+'), simplifyLoop(right))
-    case BinOperation(left, BinOperator('*'), right) =>
-      BinOperation(simplifyLoop(left), BinOperator('*'), simplifyLoop(right))
+  private def simplifyDivision(expression: Expression): Id[Expression] = {
+    expression match {
+      case BinOperation(BracketedExpression(left), BinOperator('/'), right) =>
+        BracketedExpression(openDivision(left, right))
+      case Constant(name) => Constant(new String(name.getBytes))
+      case x => x
+    }
+  }
 
-    case FuncCall(funcName, argument) =>
-      FuncCall(funcName, simplifyLoop(argument))
+  private def removeUnnecessaryBrackets(expression: Expression): Id[Expression] = {
+    expression match {
 
-    case Constant(name) => Constant(new String(name.getBytes))
-    case x => x
+      case BinOperation(BracketedExpression(left), BinOperator('+'), right) => BinOperation(left, BinOperator('+'), right)
+      case BinOperation(left, BinOperator('+'), BracketedExpression(right)) => BinOperation(left, BinOperator('+'), right)
+
+      case BinOperation(BracketedExpression(left), BinOperator('-'), right) => BinOperation(left, BinOperator('-'), right)
+      case BinOperation(left, BinOperator('-'), BracketedExpression(right)) => BinOperation(left, BinOperator('-'), right)
+
+      case Constant(name) => Constant(new String(name.getBytes))
+      case x => x
+    }
   }
 
   def flattenBrackets(expression: Expression): Expression = expression match {
-    case BracketedExpression(inner: BracketedExpression) => flattenBrackets(inner)
+    case BracketedExpression(inner) => flattenBrackets(inner)
+    case BinOperation(left, BinOperator('/'), BracketedExpression(right)) => BinOperation(flattenBrackets(left), BinOperator('/'), BracketedExpression(flattenBrackets(right)))
     case BinOperation(left, op, right) => BinOperation(flattenBrackets(left), op, flattenBrackets(right))
     case UnaryOperation(inner, op) => UnaryOperation(flattenBrackets(inner), op)
     case FuncCall(name, inner) => FuncCall(name, flattenBrackets(inner))

@@ -21,14 +21,13 @@ object Optimiser {
 
   def divisionReplace(expr: Expression): Id[Expression] = Monad[Id].pure {
     expr match {
-      case BinOperation(left, BinOperator('/'), right) => // todo suspicious
+      case BinOperation(left, BinOperator('/'), right) =>
         divisionReplaceLoop(left, right :: Nil)
       case Constant(name) => Constant(new String(name.getBytes))
       case x => x
     }
   }
 
-  // todo perform one traversal
   @tailrec
   private def divisionReplaceLoop(expr: Expression, stackExpr: List[Expression]): Expression = expr match {
     case BinOperation(left @ (Number(_) | Constant(_) | FuncCall(_, _) | BracketedExpression(_) | UnaryOperation(_, _)), BinOperator('/'), right) =>
