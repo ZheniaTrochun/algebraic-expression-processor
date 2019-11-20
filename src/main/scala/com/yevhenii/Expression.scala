@@ -1,4 +1,4 @@
-package com.yevhenii.parsing
+package com.yevhenii
 
 sealed trait Expression
 

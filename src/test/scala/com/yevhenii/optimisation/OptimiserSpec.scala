@@ -1,6 +1,7 @@
-package com.yevhenii.parsing.optimisation
+package com.yevhenii.optimisation
 
-import com.yevhenii.parsing.{ExpressionOps, FormulaParser}
+import com.yevhenii.ExpressionOps
+import com.yevhenii.parsing.FormulaParser
 import org.scalatest.{Matchers, WordSpec}
 
 class OptimiserSpec extends WordSpec with Matchers {

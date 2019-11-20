@@ -1,4 +1,4 @@
-package com.yevhenii.parsing
+package com.yevhenii.utils
 
 import cats.Monad
 

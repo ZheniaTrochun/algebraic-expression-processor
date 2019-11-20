@@ -1,4 +1,4 @@
-package com.yevhenii.parsing.utils
+package com.yevhenii.utils
 
 import cats.effect.IO
 

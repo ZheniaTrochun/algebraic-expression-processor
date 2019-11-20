@@ -1,13 +1,13 @@
-package com.yevhenii.parsing
+package com.yevhenii.visualization
 
-import com.yevhenii.parsing.ExpressionOps.expressionOps
-import com.yevhenii.parsing.ExpressionOps.asExpressionShowable
-import reftree.render.{Renderer, RenderingOptions}
-import reftree.diagram.Diagram
 import java.nio.file.{Path, Paths}
 
-import cats.{Id, Monad, Show}
 import cats.effect.IO
+import cats.{Id, Monad}
+import com.yevhenii._
+import com.yevhenii.ExpressionOps._
+import reftree.diagram.Diagram
+import reftree.render.{Renderer, RenderingOptions}
 
 object Visualizer {
   val directory: Path = Paths.get("./visualization")
@@ -24,7 +24,7 @@ object Visualizer {
   def visualize(stage: String)(expression: Expression): IO[Unit] = IO.apply {
     import renderer._
     Diagram.sourceCodeCaption(expression.traverse(prettifyOutput))
-      .withCaption(Show[Expression].show(expression))
+      .withCaption(asExpressionShowable.show(expression))
       .render(stage)
   }
 

@@ -1,8 +1,8 @@
-package com.yevhenii.parsing.optimisation
+package com.yevhenii.optimisation
 
 import cats.{Id, Monad}
-import com.yevhenii.parsing.ExpressionOps.expressionOps
-import com.yevhenii.parsing._
+import com.yevhenii._
+import com.yevhenii.ExpressionOps.expressionOps
 
 import scala.annotation.tailrec
 

@@ -1,6 +1,7 @@
 package com.yevhenii.parsing
 
 import cats.Show
+import com.yevhenii._
 
 import scala.util.parsing.combinator.{PackratParsers, RegexParsers}
 import scala.util.parsing.input.CharSequenceReader

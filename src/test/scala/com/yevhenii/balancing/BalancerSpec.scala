@@ -1,6 +1,7 @@
-package com.yevhenii.parsing.balancing
+package com.yevhenii.balancing
 
-import com.yevhenii.parsing.{ExpressionOps, FormulaParser}
+import com.yevhenii.ExpressionOps
+import com.yevhenii.parsing.FormulaParser
 import org.scalatest.{Matchers, WordSpec}
 
 class BalancerSpec extends WordSpec with Matchers {

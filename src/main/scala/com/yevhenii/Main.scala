@@ -1,13 +1,15 @@
-package com.yevhenii.parsing
+package com.yevhenii
 
 import cats.Show
 import cats.effect.IO
-import com.yevhenii.parsing.Visualizer._
-import com.yevhenii.parsing.balancing.Balancer._
-import com.yevhenii.parsing.optimisation.Optimiser._
-import com.yevhenii.parsing.optimisation.Simplifier._
+import com.yevhenii.visualization.Visualizer._
+import com.yevhenii.balancing.Balancer._
+import com.yevhenii.optimisation.Optimiser._
+import com.yevhenii.optimisation.Simplifier._
+import com.yevhenii.parsing.FormulaParser
 import com.yevhenii.parsing.FormulaParser.ParseError._
-import com.yevhenii.parsing.utils.IoUtils._
+import com.yevhenii.utils.IoUtils._
+import com.yevhenii.visualization.Visualizer
 
 object Main {
 

@@ -1,6 +1,6 @@
-package com.yevhenii.parsing.balancing
+package com.yevhenii.balancing
 
-import com.yevhenii.parsing._
+import com.yevhenii._
 
 import math.max
 import math.abs

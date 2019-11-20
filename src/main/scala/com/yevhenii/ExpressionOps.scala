@@ -1,6 +1,7 @@
-package com.yevhenii.parsing
+package com.yevhenii
 
 import cats.{Monad, Show}
+import com.yevhenii.utils.TraversableTree
 
 import scala.language.higherKinds
 
