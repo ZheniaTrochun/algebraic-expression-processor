@@ -1,6 +1,6 @@
 package com.yevhenii.parsing.optimisation
 
-import com.yevhenii.parsing.{Expression, FormulaParser}
+import com.yevhenii.parsing.{ExpressionOps, FormulaParser}
 import org.scalatest.{Matchers, WordSpec}
 
 class SimplifierSpec extends WordSpec with Matchers {
@@ -25,7 +25,7 @@ class SimplifierSpec extends WordSpec with Matchers {
           case Left(e) =>
             throw e
           case Right(tree) =>
-            Expression.asExpressionShowable.show(tree) shouldBe expected
+            ExpressionOps.asExpressionShowable.show(tree) shouldBe expected
         }
       }
     }

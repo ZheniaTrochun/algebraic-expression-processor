@@ -1,6 +1,7 @@
 package com.yevhenii.parsing.optimisation
 
 import cats.{Id, Monad}
+import com.yevhenii.parsing.ExpressionOps.expressionOps
 import com.yevhenii.parsing._
 
 import scala.annotation.tailrec
