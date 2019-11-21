@@ -15,7 +15,6 @@ object Optimiser {
     expr match {
       case BinOperation(left, BinOperator('-'), right) =>
         BinOperation(left, BinOperator('+'), UnaryOperation(right, UnaryOperator('-')))
-      case Constant(name) => Constant(new String(name.getBytes))
       case x => x
     }
   }
@@ -24,7 +23,6 @@ object Optimiser {
     expr match {
       case BinOperation(left, BinOperator('/'), right) =>
         divisionReplaceLoop(left, right :: Nil)
-      case Constant(name) => Constant(new String(name.getBytes))
       case x => x
     }
   }
@@ -64,8 +62,6 @@ object Optimiser {
       BinOperation(BinOperation(flatten(ll), BinOperator('*'), flatten(lr)), BinOperator('*'), flatten(right))
     case BracketedExpression(BinOperation(left, BinOperator('*'), BracketedExpression(BinOperation(rl, BinOperator('*'), rr)))) =>
       BinOperation(flatten(left), BinOperator('*'), BinOperation(flatten(rl), BinOperator('*'), flatten(rr)))
-
-    case Constant(name) => Constant(new String(name.getBytes))
     case x => x
   }
 }

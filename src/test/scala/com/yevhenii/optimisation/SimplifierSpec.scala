@@ -20,9 +20,7 @@ class SimplifierSpec extends WordSpec with Matchers {
       )
 
       for ((expr, expected) <- expected) {
-        FormulaParser(expr)
-          .map(Optimiser.optimize)
-          .map(Simplifier.simplify) match {
+        FormulaParser(expr).map(Optimiser.optimize).map(Simplifier.simplify) match {
           case Left(e) =>
             throw e
           case Right(tree) =>

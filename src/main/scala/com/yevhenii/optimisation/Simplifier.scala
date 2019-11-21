@@ -44,7 +44,6 @@ object Simplifier {
       case UnaryOperation(expr: BracketedExpression , UnaryOperator('-')) =>
         openUnaryMinus(expr)
 
-      case Constant(name) => Constant(new String(name.getBytes))
       case x => x
     }
   }
@@ -56,7 +55,6 @@ object Simplifier {
       case BinOperation(left, BinOperator('*'), BracketedExpression(right)) =>
         BracketedExpression(openMultiplication(right, left))
 
-      case Constant(name) => Constant(new String(name.getBytes))
       case x => x
     }
   }
@@ -65,7 +63,7 @@ object Simplifier {
     expression match {
       case BinOperation(BracketedExpression(left), BinOperator('/'), right) =>
         BracketedExpression(openDivision(left, right))
-      case Constant(name) => Constant(new String(name.getBytes))
+
       case x => x
     }
   }
@@ -79,7 +77,6 @@ object Simplifier {
       case BinOperation(BracketedExpression(left), BinOperator('-'), right) => BinOperation(left, BinOperator('-'), right)
       case BinOperation(left, BinOperator('-'), BracketedExpression(right)) => BinOperation(left, BinOperator('-'), right)
 
-      case Constant(name) => Constant(new String(name.getBytes))
       case x => x
     }
   }
@@ -90,7 +87,6 @@ object Simplifier {
     case BinOperation(left, op, right) => BinOperation(flattenBrackets(left), op, flattenBrackets(right))
     case UnaryOperation(inner, op) => UnaryOperation(flattenBrackets(inner), op)
     case FuncCall(name, inner) => FuncCall(name, flattenBrackets(inner))
-    case Constant(name) => Constant(new String(name.getBytes))
     case x => x
   }
 
