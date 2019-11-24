@@ -18,6 +18,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 object Main extends IOApp {
 
   val prepareEnv: IO[Unit] = IO {
+    // todo does not work, deletes everything
 //    Visualizer.Directory.toFile.listFiles().foreach(_.delete())
   }
 
