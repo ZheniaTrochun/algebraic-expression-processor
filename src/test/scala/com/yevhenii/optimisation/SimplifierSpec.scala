@@ -16,7 +16,8 @@ class SimplifierSpec extends WordSpec with Matchers {
         "(a+b)/(c+d+e+f)" -> "a/(c+d+e+f)+b/(c+d+e+f)",
         "(a+b)/(c+d+e+f)/g/h/i" -> "a/((c+d+e+f)*g*h*i)+b/((c+d+e+f)*g*h*i)",
         "(a+b)/(c+d+e+f)/g/h/i" -> "a/(c*i*h*g+d*i*h*g+e*i*h*g+f*i*h*g)+b/(c*i*h*g+d*i*h*g+e*i*h*g+f*i*h*g)",
-        "a/b/c/d/e/f" -> "a/(b*c*d*e*f)"
+        "a/b/c/d/e/f" -> "a/(b*c*d*e*f)",
+        "m-(a-d*(f-k))+(b-10)/(z+b)+(e-g)*(y-2)" -> "m+-(a)+-(f)*-(d)+k*-(d)+b/(z+b)+-10.0/(z+b)+y*e+-2.0*e+y*-(g)+-2.0*-(g)"
       )
 
       for ((expr, expected) <- expected) {

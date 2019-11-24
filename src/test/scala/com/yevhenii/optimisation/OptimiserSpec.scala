@@ -15,7 +15,8 @@ class OptimiserSpec extends WordSpec with Matchers {
         "(a+b+2)/(a-3*x)*123" -> "(a+b+2.0)/(a+-(3.0*x))*123.0",
         "(a+b)/(c+d+e+f)" -> "(a+b)/(c+d+e+f)",
         "(a+b)/(c+d+e+f)/g/h/i" -> "(a+b)/((c+d+e+f)*g*h*i)",
-        "a/b/c/d/e/f" -> "a/(b*c*d*e*f)"
+        "a/b/c/d/e/f" -> "a/(b*c*d*e*f)",
+        "m-(a-d*(f-k))+(b-10)/(z+b)+(e-g)*(y-2)" -> "m+-((a+-(d*(f+-(k)))))+(b+-(10.0))/(z+b)+(e+-(g))*(y+-(2.0))"
       )
 
       for ((expr, expected) <- expected) {

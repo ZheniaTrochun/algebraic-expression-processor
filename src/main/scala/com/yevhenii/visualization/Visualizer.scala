@@ -10,14 +10,14 @@ import reftree.diagram.Diagram
 import reftree.render.{Renderer, RenderingOptions}
 
 object Visualizer {
-  val directory: Path = Paths.get("./visualization")
+  val Directory: Path = Paths.get("./visualization")
   val FinalOutputFile: String = getOutputFile("balanced")
 
-  def getOutputFile(stage: String): String = s"${directory.toString}/$stage.pdf"
+  def getOutputFile(stage: String): String = s"${Directory.toString}/$stage.pdf"
 
   private val renderer = Renderer(
     renderingOptions = RenderingOptions(density = 75),
-    directory = directory,
+    directory = Directory,
     format = "pdf"
   )
 
