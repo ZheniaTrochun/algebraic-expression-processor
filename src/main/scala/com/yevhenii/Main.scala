@@ -7,6 +7,7 @@ import com.yevhenii.visualization.Visualizer._
 import com.yevhenii.balancing.Balancer._
 import com.yevhenii.optimisation.Optimiser._
 import com.yevhenii.optimisation.Simplifier._
+import com.yevhenii.optimisation.CommutativityOptimizer._
 import com.yevhenii.parsing.FormulaParser
 import com.yevhenii.parsing.FormulaParser.ParseError._
 import com.yevhenii.utils.IoUtils._
@@ -51,7 +52,7 @@ object Main extends IOApp {
       .flatMap(IO.fromEither)
       .map(optimize)
       .map(simplifyOneByOne)
-  } (balance)
+  } ((shuffle _).compose(balance))
     .peek(visualizeResults)
 
   def runOnce(): IO[ExitCode] = expressionsIO.redeemWith(printFailure, printSuccess)
