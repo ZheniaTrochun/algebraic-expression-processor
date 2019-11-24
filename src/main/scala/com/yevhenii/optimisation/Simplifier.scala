@@ -38,11 +38,17 @@ object Simplifier {
   @tailrec
   private def simplifyOneByOne(acc: List[Expression], curr: Expression): List[Expression] = {
     if (shouldBeSimplified(curr)) {
-      val res = simplifyOnce(curr)
+      val res = simplifyLeadingBrackets(simplifyOnce(curr))
       simplifyOneByOne(res :: acc, res)
     } else {
       acc
     }
+  }
+
+  @tailrec
+  private def simplifyLeadingBrackets(expression: Expression): Expression = expression match {
+    case BracketedExpression(inner) => simplifyLeadingBrackets(inner)
+    case x => x
   }
 
   private def shouldBeSimplified(tree: Expression): Boolean = tree match {
