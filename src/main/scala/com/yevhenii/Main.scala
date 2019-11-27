@@ -11,7 +11,6 @@ import com.yevhenii.optimisation.CommutativityOptimizer._
 import com.yevhenii.parsing.FormulaParser
 import com.yevhenii.parsing.FormulaParser.ParseError._
 import com.yevhenii.utils.IoUtils._
-import com.yevhenii.visualization.Visualizer
 
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -52,7 +51,8 @@ object Main extends IOApp {
       .flatMap(IO.fromEither)
       .map(optimize)
       .map(simplifyOneByOne)
-  } ((shuffle _).compose(balance))
+  } ((orderByComplexity _).compose(balance))
+    .map(_.flatMap(permutations))
     .peek(visualizeResults)
 
   def runOnce(): IO[ExitCode] = expressionsIO.redeemWith(printFailure, printSuccess)
