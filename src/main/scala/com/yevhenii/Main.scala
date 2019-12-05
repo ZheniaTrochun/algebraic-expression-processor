@@ -1,6 +1,6 @@
 package com.yevhenii
 
-import cats.{Monad, Show}
+import cats.Show
 import cats.effect._
 import cats.implicits._
 import com.yevhenii.visualization.Visualizer._
@@ -14,6 +14,9 @@ import com.yevhenii.utils.IoUtils._
 
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
+
+// todo good example:
+// (a/(a*b+a*b))+(a*(b*d+b*e+b+e))
 
 object Main extends IOApp {
 
@@ -44,16 +47,16 @@ object Main extends IOApp {
   def visualizeResults(list: List[Expression]): IO[List[Unit]] =
     IO.fromFuture(IO(Future.traverse(list.zipWithIndex)(visualizeItemUnsafe)))
 
-  val expressionsIO: IO[List[Expression]] = Monad[IO].compose[List].map {
+  val expressionsIO: IO[List[Expression]] =
     prepareEnv
       .flatMap(_ => getInput)
       .map(FormulaParser.apply)
       .flatMap(IO.fromEither)
       .map(optimize)
       .map(simplifyOneByOne)
-  } ((orderByComplexity _).compose(balance))
-    .map(_.flatMap(permutations))
-    .peek(visualizeResults)
+      .map(_.map(balance))
+      .map(_.flatMap(orderByComplexity))
+      .peek(visualizeResults)
 
   def runOnce(): IO[ExitCode] = expressionsIO.redeemWith(printFailure, printSuccess)
 

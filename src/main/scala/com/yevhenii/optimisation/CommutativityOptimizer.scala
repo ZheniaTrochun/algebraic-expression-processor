@@ -1,12 +1,12 @@
 package com.yevhenii.optimisation
 
-import cats.{Id, Monad}
+import cats.instances.list._
 import com.yevhenii._
 import com.yevhenii.ExpressionOps._
 
 object CommutativityOptimizer {
 
-  def orderByComplexity(expression: Expression): Expression = {
+  def orderByComplexity(expression: Expression): List[Expression] = {
     expression.traverse(sortByComplexity)
   }
 
@@ -33,18 +33,23 @@ object CommutativityOptimizer {
       original :: Nil
   }
 
-  private def sortByComplexity(expression: Expression): Id[Expression] = Monad[Id].pure {
-    expression match {
-      case original @ BinOperation(left, op @ BinOperator('+' | '*'), right) =>
-        val leftWeight = evaluate(left)
-        val rightWeight = evaluate(right)
-        lazy val isRightNegative = isNegative(right)
+  private def sortByComplexity(expression: Expression): List[Expression] = expression match {
+    case original @ BinOperation(left, op @ BinOperator('+' | '*'), right) =>
+      val leftWeight = evaluate(left)
+      val rightWeight = evaluate(right)
+      lazy val isRightNegative = isNegative(right)
 
-        if (rightWeight > leftWeight || isRightNegative) swap(original)
-        else original
+      if (rightWeight > leftWeight || isRightNegative) {
+        swap(original) :: Nil
+      } else {
+        if (rightWeight == leftWeight && !isSimilar(right, left)) {
+          original :: swap(original) :: Nil
+        } else {
+          original :: Nil
+        }
+      }
 
-      case x => x
-    }
+    case x => x :: Nil
   }
 
   private def evaluate(expression: Expression): Int = expression match {
@@ -76,6 +81,7 @@ object CommutativityOptimizer {
     case (FuncCall(leftName, left), FuncCall(rightName, right)) if leftName == rightName =>
       isSimilar(left, right)
 
+    case (left, UnaryOperation(right, UnaryOperator('-'))) => isSimilar(left, right)
     case (_: ExpressionTreeLeaf, _: ExpressionTreeLeaf) => true
     case _ => false
   }
@@ -85,7 +91,7 @@ object CommutativityOptimizer {
     case x => x
   }
 
-  implicit class Crossable[X](xs: List[X]) {
+  implicit class crossable[X](xs: List[X]) {
     def cross[Y](ys: List[Y]): List[(X, Y)] = for { x <- xs; y <- ys } yield (x, y)
   }
 }
