@@ -29,17 +29,15 @@ class AlgebraicExpressionRunner(context: Context) {
     case Number(_) => Flow.unit(x)
     case Constant(name) => Flow.unit(Number(context.constants.apply(name)))
     case BracketedExpression(expr) => buildFlow(expr)
-    case binOperation @ BinOperation(left, op, right) => //calculate(binOperation)
+    case binOperation @ BinOperation(left, op, right) =>
       val leftFlow = buildFlow(left)
       val rightFlow = buildFlow(right)
-      Flow.map2(leftFlow, rightFlow)(BinOperation(_, op, _)).flatMap(calculate)
-//      Flow.map2withComplexity(leftFlow, rightFlow)(BinOperation(_, op, _), getOperationComplexity(op)).flatMapAsync(calculate) // todo very incorrect
-//      Flow.map2withComplexity(leftFlow, rightFlow)(BinOperation(_, op, _), getOperationComplexity(op)).flatMap(calculate) // todo incorrect
+      Flow.map2withComplexity(leftFlow, rightFlow)(BinOperation(_, op, _), getOperationComplexity(op)).flatMap(calculate)
     case UnaryOperation(inner, UnaryOperator('-')) => Flow.unit(Number(-1))
-      // todo
-//      buildFlow(inner)
-//        .map(UnaryOperation(_, UnaryOperator('-')))
-//        .flatMap { case UnaryOperation(Number(n), UnaryOperator('-')) => Flow.unit(Number(-n)) }
+      // todo check
+      buildFlow(inner)
+        .map(UnaryOperation(_, UnaryOperator('-')))
+        .flatMap { case UnaryOperation(Number(n), UnaryOperator('-')) => Flow.unit(Number(-n)) }
   }
 
   @tailrec
@@ -53,8 +51,8 @@ class AlgebraicExpressionRunner(context: Context) {
 
   def calculate(binOperation: BinOperation): Flow[Expression] = binOperation match {
     case BinOperation(Number(l), op, Number(r)) =>
-      val (func, complexity) = (getOperation(op), getOperationComplexity(op))
-      Flow.unit(Number(func(l, r))) // todo
+      val func = getOperation(op)
+      Flow.unit(Number(func(l, r)))
   }
 
   def getOperationComplexity(op: BinOperator): Int = op match {

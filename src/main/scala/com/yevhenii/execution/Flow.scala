@@ -8,18 +8,14 @@ import cats.Monad
 
 object Execution {
 
-  case class BiFunctionWithComplexity[A, B, C](f: (A, B) => C, complexity: Int) extends ((A, B) => C) {
-    override def apply(v1: A, v2: B): C = f(v1, v2)
-  }
-
   trait Future[+A] {
     def apply(k: A => Unit): Unit
   }
 
   trait Flow[+A] extends (Executor => Future[A])
 
-  case class AsyncFlow[+A](f: Executor => Future[A], complexity: Int) extends Flow[A] {
-    override def apply(v1: Executor): Future[A] = f(v1)
+  case class AsyncFlow[+A](f: (Executor, Int) => Future[A], complexity: Int) extends Flow[A] {
+    override def apply(v1: Executor): Future[A] = f(v1, complexity)
   }
 
   case class UnitFlow[+A](value: A) extends Flow[A] {
@@ -56,7 +52,7 @@ object Execution {
 
     /** A non-strict version of `unit` */
     def delay[A](a: => A): Flow[A] = AsyncFlow (
-      (es: Executor) => new Future[A] {
+      (es: Executor, _) => new Future[A] {
         def apply(cb: A => Unit): Unit =
           cb(a)
       }, 1
@@ -64,7 +60,7 @@ object Execution {
 
 
     def delay[A](a: => A, complexity: Int): Flow[A] = AsyncFlow (
-      (es: Executor) => new Future[A] {
+      (es: Executor, _) => new Future[A] {
         def apply(cb: A => Unit): Unit =
           cb(a)
       },
@@ -87,7 +83,7 @@ object Execution {
       * This will come in handy in Chapter 13.
       */
     def async[A](f: (A => Unit) => Unit): Flow[A] = AsyncFlow (
-      (es: Executor) => new Future[A] {
+      (es: Executor, _) => new Future[A] {
         def apply(k: A => Unit) = f(k)
       }, 1
     )
@@ -118,8 +114,8 @@ object Execution {
 //      }, 1 // todo incorrect complexity
 //    )
 
-    def map2[A,B,C](p: Flow[A], p2: Flow[B])(f: (A,B) => C): Flow[C] = AsyncFlow ( // todo async ??????
-      (es: Executor) => new Future[C] { // todo complexity should be passed here
+    def map2withComplexity[A,B,C](p: Flow[A], p2: Flow[B])(f: (A,B) => C, fComplexity: Int): Flow[C] = AsyncFlow (
+      (es: Executor, complexity) => new Future[C] {
         def apply(cb: C => Unit): Unit = {
           (p, p2) match {
             case (UnitFlow(v1), UnitFlow(v2)) => println(s"map2 unit($v1), unit($v2)")
@@ -136,31 +132,27 @@ object Execution {
             case UnitFlow(x) =>
               ar.set(x)
               countDown.countDown()
-            case AsyncFlow(ap, c) => eval(es)(
-              ap(es)(a => {
-                ar.set(a)
-                countDown.countDown()
-              }), c
-            )
+            case AsyncFlow(ap, c) => p(es) { a =>
+              ar.set(a)
+              countDown.countDown()
+            }
           }
 
           p2 match {
             case UnitFlow(x) =>
               br.set(x)
               countDown.countDown()
-            case AsyncFlow(ap, c) => eval(es)(
-              ap(es)(b => {
-                br.set(b)
-                countDown.countDown()
-              }), c
-            )
+            case AsyncFlow(ap, c) => p2(es) { b =>
+              br.set(b)
+              countDown.countDown()
+            }
           }
 
           countDown.await()
 
-          cb(f(ar.get(), br.get()))
+          eval(es)(cb(f(ar.get(), br.get())), complexity)
         }
-      }, 1 // todo incorrect complexity
+      }, fComplexity
     )
 
 //    def map2withComplexity[A,B,C](p: Flow[A], p2: Flow[B])(f: (A,B) => C, complexity: Int): Flow[C] = Flow (
@@ -186,13 +178,30 @@ object Execution {
 //    )
 
     // specialized version of `map`
-//    def map[A,B](p: Flow[A])(f: A => B): Flow[B] = Flow (
-//      (es: Executor) => new Future[B] {
-//        def apply(cb: B => Unit): Unit =
-//          p(es)(a => eval(es)(cb(f(a)), p.complexity))
-//      }, p.complexity
-//    )
+    def mapAsync[A,B](p: Flow[A])(f: A => B, complexity: Int): Flow[B] = AsyncFlow (
+      (es: Executor, complexity) => new Future[B] {
+        def apply(cb: B => Unit): Unit =
+          p(es)(a => eval(es)(cb(f(a)), complexity))
+      }, complexity
+    )
 
+    // todo evaluated on main thread
+    def map[A,B](p: Flow[A])(f: A => B): Flow[B] = new Flow[B] {
+      override def apply(es: Executor): Future[B] = new Future[B] {
+        override def apply(cb: B => Unit): Unit = {
+          p(es)(a => cb(f(a)))
+        }
+      }
+    }
+
+//    // todo evaluated on main thread
+//    def map[A,B](p: Flow[A])(f: A => B): Flow[B] = AsyncFlow (
+//      (es: Executor, _) => new Future[B] {
+//        def apply(cb: B => Unit): Unit =
+//          p(es)(a => cb(f(a)))
+//      }, 0
+//    )
+//
 //    def lazyUnit[A](a: => A): Flow[A] =
 //      fork(unit(a))
 
@@ -215,7 +224,7 @@ object Execution {
       flatMap(p)(f)
 
     def flatMap[A,B](p: Flow[A])(f: A => Flow[B]): Flow[B] = AsyncFlow (
-      (es: Executor) => new Future[B] {
+      (es: Executor, _) => new Future[B] {
         def apply(cb: B => Unit): Unit =
           p(es)(a => f(a)(es)(cb))
       },
@@ -232,27 +241,27 @@ object Execution {
 //      )
 //    }
 
-    implicit val flowMonad: Monad[Flow] = new Monad[Flow] {
-      override def flatMap[A, B](fa: Flow[A])(f: A => Flow[B]): Flow[B] = fa.flatMap(f)
-
-      override def tailRecM[A, B](a: A)(f: A => Flow[Either[A, B]]): Flow[B] = {
-        f(a).flatMap {
-          case Left(l) => tailRecM(l)(f)
-          case Right(value) => Flow.unit(value)
-        }
-      }
-
-      override def pure[A](x: A): Flow[A] = Flow.unit(x)
-
-      override def map2[A, B, Z](fa: Flow[A], fb: Flow[B])(f: (A, B) => Z): Flow[Z] = Flow.map2(fa, fb)(f)
-    }
+//    implicit val flowMonad: Monad[Flow] = new Monad[Flow] {
+//      override def flatMap[A, B](fa: Flow[A])(f: A => Flow[B]): Flow[B] = fa.flatMap(f)
+//
+//      override def tailRecM[A, B](a: A)(f: A => Flow[Either[A, B]]): Flow[B] = {
+//        f(a).flatMap {
+//          case Left(l) => tailRecM(l)(f)
+//          case Right(value) => Flow.unit(value)
+//        }
+//      }
+//
+//      override def pure[A](x: A): Flow[A] = Flow.unit(x)
+//
+//      override def map2[A, B, Z](fa: Flow[A], fb: Flow[B])(f: (A, B) => Z): Flow[Z] = Flow.map2withComplexity(fa, fb)(f)
+//    }
 
     implicit def toParOps[A](p: Flow[A]): ParOps[A] = new ParOps(p)
 
     // infix versions of `map`, `map2` and `flatMap`
     class ParOps[A](p: Flow[A]) {
-//      def map[B](f: A => B): Flow[B] = Flow.map(p)(f)
-      def map2[B,C](b: Flow[B])(f: (A,B) => C): Flow[C] = Flow.map2(p,b)(f)
+      def map[B](f: A => B): Flow[B] = Flow.map(p)(f)
+      def map2[B,C](b: Flow[B])(f: (A,B) => C, fComplexity: Int): Flow[C] = Flow.map2withComplexity(p,b)(f, fComplexity)
 //      def map2withComplexity[B,C](b: Flow[B])(f: (A,B) => C, complexity: Int): Flow[C] = Flow.map2withComplexity(p,b)(f, complexity)
       def flatMap[B](f: A => Flow[B]): Flow[B] = Flow.flatMap(p)(f)
 //      def flatMapAsync[B](f: A => Flow[B]): Flow[B] = Flow.flatMapAsync(p)(f)
