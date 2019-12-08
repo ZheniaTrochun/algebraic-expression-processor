@@ -2,9 +2,13 @@ package com.yevhenii.execution
 
 import java.util.concurrent.{Callable, Executors, TimeUnit}
 
+import com.yevhenii.execution.Execution.Flow
+
 import scala.collection.mutable
 
 trait Executor {
+
+//  def submit(x: Flow[_]): Unit
   def submit(x: Callable[_], complexity: Int = 1): Unit
   def submitRunnable(x: Runnable, complexity: Int = 1): Unit
 

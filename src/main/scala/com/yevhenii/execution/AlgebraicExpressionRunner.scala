@@ -18,10 +18,28 @@ class AlgebraicExpressionRunner(context: Context) {
   val executor = new DataFlowExecutor(context)
 
   def run(expression: Expression): Either[Err, Result] = {
-    val resultFlow = expression.traverse(calculateNode)
+//    val resultFlow = expression.traverse(calculateNode)
+    val resultFlow = buildFlow(expression)
     executor.init()
     val flowRes = Flow.run(executor)(resultFlow)
     interpretRes(flowRes).map(x => x -> executor.getDuration)
+  }
+
+  def buildFlow(x: Expression): Flow[Expression] = x match {
+    case Number(_) => Flow.unit(x)
+    case Constant(name) => Flow.unit(Number(context.constants.apply(name)))
+    case BracketedExpression(expr) => buildFlow(expr)
+    case binOperation @ BinOperation(left, op, right) => //calculate(binOperation)
+      val leftFlow = buildFlow(left)
+      val rightFlow = buildFlow(right)
+      Flow.map2(leftFlow, rightFlow)(BinOperation(_, op, _)).flatMap(calculate)
+//      Flow.map2withComplexity(leftFlow, rightFlow)(BinOperation(_, op, _), getOperationComplexity(op)).flatMapAsync(calculate) // todo very incorrect
+//      Flow.map2withComplexity(leftFlow, rightFlow)(BinOperation(_, op, _), getOperationComplexity(op)).flatMap(calculate) // todo incorrect
+    case UnaryOperation(inner, UnaryOperator('-')) => Flow.unit(Number(-1))
+      // todo
+//      buildFlow(inner)
+//        .map(UnaryOperation(_, UnaryOperator('-')))
+//        .flatMap { case UnaryOperation(Number(n), UnaryOperator('-')) => Flow.unit(Number(-n)) }
   }
 
   @tailrec
@@ -35,15 +53,22 @@ class AlgebraicExpressionRunner(context: Context) {
 
   def calculate(binOperation: BinOperation): Flow[Expression] = binOperation match {
     case BinOperation(Number(l), op, Number(r)) =>
-      val (func, complexity) = getOperation(op)
-      Flow.unit(Number(func(l, r)), complexity)
+      val (func, complexity) = (getOperation(op), getOperationComplexity(op))
+      Flow.unit(Number(func(l, r))) // todo
   }
 
-  def getOperation(op: BinOperator): ((Double, Double) => Double, Int) = op match {
-    case BinOperator('+') => ((x: Double, y: Double) => x + y) -> 1
-    case BinOperator('-') => ((x: Double, y: Double) => x - y) -> 1
-    case BinOperator('*') => ((x: Double, y: Double) => x * y) -> 2
-    case BinOperator('/') => ((x: Double, y: Double) => x / y) -> 4
+  def getOperationComplexity(op: BinOperator): Int = op match {
+    case BinOperator('+') => 1
+    case BinOperator('-') => 1
+    case BinOperator('*') => 2
+    case BinOperator('/') => 4
+  }
+
+  def getOperation(op: BinOperator): (Double, Double) => Double = op match {
+    case BinOperator('+') => _ + _
+    case BinOperator('-') => _ - _
+    case BinOperator('*') => _ * _
+    case BinOperator('/') => _ / _
   }
 
   def interpretRes(tree: Expression): Either[Err, Double] = tree match {
@@ -51,3 +76,42 @@ class AlgebraicExpressionRunner(context: Context) {
     case other: Expression => Left(s"Expected Number but got: ${asExpressionShowable.show(other)}")
   }
 }
+
+
+/*
+
+
+p = <function1>, p2 = <function1>, complexity = 1
+p = <function1>, p2 = <function1>, complexity = 1
+p = <function1>, p2 = <function1>, complexity = 1
+p = <function1>, p2 = <function1>, complexity = 1
+p = <function1>, p2 = <function1>, complexity = 1
+p = <function1>, p2 = <function1>, complexity = 1
+p = <function1>, p2 = <function1>, complexity = 4
+p = <function1>, p2 = <function1>, complexity = 1
+p = <function1>, p2 = <function1>, complexity = 2
+res = 0.2571428571428571, time = 16, expression =
+		3.0
+	/
+					2.0
+				+
+					3.0
+			+
+					4.0
+				+
+					5.0
+		+
+					6.0
+				+
+					7.0
+			+
+				8.0
+
+
+*
+		1.0
+	+
+		2.0
+
+
+ */

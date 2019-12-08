@@ -28,7 +28,7 @@ object Main extends IOApp {
   }
 
   def executeAndPrint(expression: Expression): Unit = { //: Either[String, (Double, Int)] = {
-    val context = Context(1, 100, c => c.toInt, _ => x => x * x)
+    val context = Context(1, 500, c => c.toInt, _ => x => x * x)
     val runer = new AlgebraicExpressionRunner(context)
     val res = runer.run(expression)
     res match {
