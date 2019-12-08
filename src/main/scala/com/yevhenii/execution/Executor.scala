@@ -1,13 +1,10 @@
 package com.yevhenii.execution
 
-import java.util.concurrent.{Callable, Executors}
+import java.util.concurrent.{Callable, Executors, TimeUnit}
 
 import scala.collection.mutable
 
 trait Executor {
-
-  val parallelism: Int
-
   def submit(x: Callable[_], complexity: Int = 1): Unit
   def submitRunnable(x: Runnable, complexity: Int = 1): Unit
 
@@ -15,36 +12,27 @@ trait Executor {
 }
 
 object Executor {
-  object DataFlowExecutor extends Executor {
-    override val parallelism: Int = 2
+  class DataFlowExecutor(context: Context) extends Executor {
+    val parallelism: Int = context.parallelism
 
+    private[this] val tickTime: Int = context.tickTime
     private[this] var tacts = 0
+    private[this] val workerThreadFactory = Executors.newScheduledThreadPool(1)
 
-    private val queue: mutable.Queue[Callable[_]] = new mutable.Queue[Callable[_]]()
-
+    private val queue: mutable.Queue[(Callable[_], Int)] = new mutable.Queue[(Callable[_], Int)]()
     private var currBuffer: mutable.Buffer[(Callable[_], Int)] = new mutable.ListBuffer[(Callable[_], Int)]()
 
-    private[this] val workerThreadFactory = Executors.newFixedThreadPool(1)//.submit(new Runnable {
-//      override def run(): Unit = while (true) tick()
-//    })
+    override def submit(x: Callable[_], complexity: Int): Unit = queue.enqueue(x -> complexity)
+    override def submitRunnable(x: Runnable, complexity: Int): Unit = submit(() => x.run(), complexity)
 
-//    override def submit(x: Flow[_], complexity: Int): Unit = ???
-
-    override def submit(x: Callable[_], complexity: Int): Unit = queue.enqueue(x)
-    override def submitRunnable(x: Runnable, complexity: Int): Unit = queue.enqueue(() => x.run())
-
-    override def getDuration: Int = {
-      val t = tacts
-      tacts = 0
-      t
-    }
+    override def getDuration: Int = tacts
 
     private def tick(): Unit = {
       if (currBuffer.size < parallelism) {
         val diff = parallelism - currBuffer.size
         for (_ <- 1 to diff) {
           if (queue.nonEmpty) {
-            currBuffer.append(queue.dequeue() -> 1)
+            currBuffer.append(queue.dequeue())
           }
         }
       }
@@ -63,13 +51,13 @@ object Executor {
         currBuffer = newBuffer
         tacts += 1
       }
-      Thread.sleep(500)
     }
 
-    def init(): Unit = {
-      workerThreadFactory.submit(new Runnable {
-        override def run(): Unit = while (true) tick()
-      })
-    }
+    def init(): Unit = workerThreadFactory.scheduleAtFixedRate(
+      () => while (true) tick(),
+      tickTime,
+      tickTime,
+      TimeUnit.MILLISECONDS
+    )
   }
 }
