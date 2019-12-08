@@ -5,11 +5,13 @@ import cats.effect._
 import cats.implicits._
 import com.yevhenii.visualization.Visualizer._
 import com.yevhenii.balancing.Balancer._
+import com.yevhenii.execution.{AlgebraicExpressionRunner, Context}
 import com.yevhenii.optimisation.Optimiser._
 import com.yevhenii.optimisation.Simplifier._
 import com.yevhenii.optimisation.CommutativityOptimizer._
 import com.yevhenii.parsing.FormulaParser
 import com.yevhenii.parsing.FormulaParser.ParseError._
+import com.yevhenii.ExpressionOps._
 import com.yevhenii.utils.IoUtils._
 
 import scala.concurrent.Future
@@ -23,6 +25,16 @@ object Main extends IOApp {
   val prepareEnv: IO[Unit] = IO {
     // todo does not work, deletes everything
 //    Visualizer.Directory.toFile.listFiles().foreach(_.delete())
+  }
+
+  def executeAndPrint(expression: Expression): Unit = { //: Either[String, (Double, Int)] = {
+    val context = Context(10, Map(), Map())
+    val runer = new AlgebraicExpressionRunner(context)
+    val res = runer.run(expression)
+    res match {
+      case Left(v) => sys.error(v)
+      case Right((num, time)) => println(s"res = $num, time = $time, expression = \n${asTreeShowable.show(expression)}")
+    }
   }
 
   val getInput: IO[String] = IO {
@@ -57,6 +69,7 @@ object Main extends IOApp {
       .map(_.map(balance))
       .map(_.flatMap(orderByComplexity))
       .peek(visualizeResults)
+      .peek(x => IO(x.foreach(executeAndPrint)))
 
   def runOnce(): IO[ExitCode] = expressionsIO.redeemWith(printFailure, printSuccess)
 

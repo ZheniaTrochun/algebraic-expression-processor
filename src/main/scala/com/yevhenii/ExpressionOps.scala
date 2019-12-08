@@ -18,7 +18,8 @@ object ExpressionOps {
       case FuncCall(Constant(name), arg) =>
         tabs(n) + s"$name(\n${showLoop(arg, n + 1)}" + tabs(n) + ")\n"
       case BracketedExpression(expr) =>
-        tabs(n) + s"(\n${showLoop(expr, n + 1)}" + tabs(n) + ")\n"
+        s"${showLoop(expr, n)}\n"
+//        tabs(n) + s"(\n${showLoop(expr, n + 1)}" + tabs(n) + ")\n"
       case UnaryOperation(expr, UnaryOperator(op)) =>
         tabs(n) + s"$op(\n${showLoop(expr, n + 1)}" + tabs(n) + ")\n"
     }
