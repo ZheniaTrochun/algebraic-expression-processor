@@ -27,8 +27,6 @@ object Execution {
 
   object Flow {
 
-//    implicit def conversion[A](f: Executor => Future[A]): Flow[A] = new Flow[A](f)
-
     def run[A](es: Executor)(p: Flow[A]): A = {
       val ref = new AtomicReference[A]
       val latch = new CountDownLatch(1)
@@ -42,14 +40,6 @@ object Execution {
 
     def unit[A](a: A): Flow[A] = UnitFlow(a)
 
-//    def unit[A](a: A, complexity: Int): Flow[A] = Flow (
-//      (es: Executor) => new Future[A] {
-//        def apply(cb: A => Unit): Unit =
-//          cb(a)
-//      },
-//      complexity
-//    )
-
     /** A non-strict version of `unit` */
     def delay[A](a: => A): Flow[A] = AsyncFlow (
       (es: Executor, _) => new Future[A] {
@@ -58,7 +48,6 @@ object Execution {
       }, 1
     )
 
-
     def delay[A](a: => A, complexity: Int): Flow[A] = AsyncFlow (
       (es: Executor, _) => new Future[A] {
         def apply(cb: A => Unit): Unit =
@@ -66,17 +55,6 @@ object Execution {
       },
       complexity
     )
-
-//    def fork[A](a: => Flow[A]): Flow[A] = {
-//      val a_ = a
-//      Flow (
-//        (es: Executor) => new Future[A] {
-//          def apply(cb: A => Unit): Unit =
-//            eval(es)(a_(es)(cb), a_.complexity)
-//        },
-//        a_.complexity
-//      )
-//    }
 
     /**
       * Helper function for constructing `Par` values out of calls to non-blocking continuation-passing-style APIs.
@@ -94,25 +72,6 @@ object Execution {
       */
     def eval(es: Executor)(r: => Unit, complexity: Int): Unit =
       es.submit(new Callable[Unit] { def call = r }, complexity)
-//
-//    def map2[A,B,C](p: Flow[A], p2: Flow[B])(f: (A,B) => C): Flow[C] = Flow (
-//      (es: Executor) => new Future[C] {
-//        def apply(cb: C => Unit): Unit = {
-//          var ar: Option[A] = None
-//          var br: Option[B] = None
-//          val combiner = Actor[Either[(A, Int), (B, Int)]]() {
-//            case Left((a, complexity)) =>
-//              if (br.isDefined) eval(es)(cb(f(a,br.get)), complexity)
-//              else ar = Some(a)
-//            case Right((b, complexity)) =>
-//              if (ar.isDefined) eval(es)(cb(f(ar.get,b)), complexity)
-//              else br = Some(b)
-//          }
-//          p(es)(a => combiner ! Left(a, p.complexity))
-//          p2(es)(b => combiner ! Right(b, p2.complexity))
-//        }
-//      }, 1 // todo incorrect complexity
-//    )
 
     def map2withComplexity[A,B,C](p: Flow[A], p2: Flow[B])(f: (A,B) => C, fComplexity: Int): Flow[C] = AsyncFlow (
       (es: Executor, complexity) => new Future[C] {
@@ -149,33 +108,13 @@ object Execution {
           }
 
           countDown.await()
+          val a = ar.get
+          val b = br.get
 
           eval(es)(cb(f(ar.get(), br.get())), complexity)
         }
       }, fComplexity
     )
-
-//    def map2withComplexity[A,B,C](p: Flow[A], p2: Flow[B])(f: (A,B) => C, complexity: Int): Flow[C] = Flow (
-//      (es: Executor) => new Future[C] {
-//        def apply(cb: C => Unit): Unit = {
-//          var ar: Option[A] = None
-//          var br: Option[B] = None
-//          val combiner = Actor[Either[(A, Int), (B, Int)]]() {
-//            case Left((a, compl)) =>
-//              if (br.isDefined) eval(es)(cb(f(a,br.get)), compl)
-//              else ar = Some(a)
-//            case Right((b, compl)) =>
-//              if (ar.isDefined) eval(es)(cb(f(ar.get,b)), compl)
-//              else br = Some(b)
-//          }
-//          p(es)(a => combiner ! Left(a, p.complexity))
-//          p2(es)(b => combiner ! Right(b, p2.complexity))
-//        }
-//      }, {
-//        println(s"p = $p, p2 = $p2, complexity = $complexity")
-//        complexity
-//      }
-//    )
 
     // specialized version of `map`
     def mapAsync[A,B](p: Flow[A])(f: A => B, complexity: Int): Flow[B] = AsyncFlow (
@@ -185,7 +124,6 @@ object Execution {
       }, complexity
     )
 
-    // todo evaluated on main thread
     def map[A,B](p: Flow[A])(f: A => B): Flow[B] = new Flow[B] {
       override def apply(es: Executor): Future[B] = new Future[B] {
         override def apply(cb: B => Unit): Unit = {
@@ -193,31 +131,6 @@ object Execution {
         }
       }
     }
-
-//    // todo evaluated on main thread
-//    def map[A,B](p: Flow[A])(f: A => B): Flow[B] = AsyncFlow (
-//      (es: Executor, _) => new Future[B] {
-//        def apply(cb: B => Unit): Unit =
-//          p(es)(a => cb(f(a)))
-//      }, 0
-//    )
-//
-//    def lazyUnit[A](a: => A): Flow[A] =
-//      fork(unit(a))
-
-//    def asyncF[A,B](f: A => B): A => Flow[B] =
-//      a => lazyUnit(f(a))
-
-//    def choice[A](p: Flow[Boolean])(t: Flow[A], f: Flow[A]): Flow[A] = Flow (
-//      (es: Executor) => new Future[A] {
-//        def apply(cb: A => Unit): Unit =
-//          p(es) { b =>
-//            if (b) eval(es)(t(es)(cb), t.complexity)
-//            else eval(es)(f(es)(cb), f.complexity)
-//          }
-//      },
-//      p.complexity
-//    )
 
     /* `chooser` is usually called `flatMap` or `bind`. */
     def chooser[A,B](p: Flow[A])(f: A => Flow[B]): Flow[B] =
@@ -231,40 +144,13 @@ object Execution {
       1
     )
 
-//    def flatMapAsync[A,B](p: Flow[A])(f: A => Flow[B]): Flow[B] = fork {
-//      Flow (
-//        (es: Executor) => new Future[B] {
-//          def apply(cb: B => Unit): Unit =
-//            p(es)(a => f(a)(es)(cb))
-//        },
-//        p.complexity
-//      )
-//    }
-
-//    implicit val flowMonad: Monad[Flow] = new Monad[Flow] {
-//      override def flatMap[A, B](fa: Flow[A])(f: A => Flow[B]): Flow[B] = fa.flatMap(f)
-//
-//      override def tailRecM[A, B](a: A)(f: A => Flow[Either[A, B]]): Flow[B] = {
-//        f(a).flatMap {
-//          case Left(l) => tailRecM(l)(f)
-//          case Right(value) => Flow.unit(value)
-//        }
-//      }
-//
-//      override def pure[A](x: A): Flow[A] = Flow.unit(x)
-//
-//      override def map2[A, B, Z](fa: Flow[A], fb: Flow[B])(f: (A, B) => Z): Flow[Z] = Flow.map2withComplexity(fa, fb)(f)
-//    }
-
     implicit def toParOps[A](p: Flow[A]): ParOps[A] = new ParOps(p)
 
     // infix versions of `map`, `map2` and `flatMap`
     class ParOps[A](p: Flow[A]) {
       def map[B](f: A => B): Flow[B] = Flow.map(p)(f)
       def map2[B,C](b: Flow[B])(f: (A,B) => C, fComplexity: Int): Flow[C] = Flow.map2withComplexity(p,b)(f, fComplexity)
-//      def map2withComplexity[B,C](b: Flow[B])(f: (A,B) => C, complexity: Int): Flow[C] = Flow.map2withComplexity(p,b)(f, complexity)
       def flatMap[B](f: A => Flow[B]): Flow[B] = Flow.flatMap(p)(f)
-//      def flatMapAsync[B](f: A => Flow[B]): Flow[B] = Flow.flatMapAsync(p)(f)
     }
   }
 
@@ -332,9 +218,6 @@ object Execution {
     /** Create an `Actor` backed by the given `ExecutorService`. */
     def apply[A](es: ExecutorService = Executors.newCachedThreadPool())(handler: A => Unit, onError: Throwable => Unit = throw(_)): Actor[A] =
       new Actor(Strategy.sequential)(handler, onError)
-//    /** Create an `Actor` backed by the given `ExecutorService`. */
-//    def apply[A](es: Executor)(handler: A => Unit, onError: Throwable => Unit = throw(_)): Actor[A] =
-//      new Actor(Strategy.fromExecutor(es))(handler, onError)
   }
 
   /**
@@ -348,19 +231,6 @@ object Execution {
   }
 
   object Strategy {
-//
-//    /**
-//      * We can create a `Strategy` from any `ExecutorService`. It's a little more
-//      * convenient than submitting `Callable` objects directly.
-//      */
-//    def fromExecutor(es: Executor): Strategy = new Strategy {
-//      def apply[A](a: => A): () => A = {
-//        val promise = Promise[A]()
-//        es.submit { new Callable[Unit] { def call = promise.trySuccess(a) } }
-//        () => Await.result(promise.future, Duration.Inf)
-//      }
-//    }
-
     /**
       * A `Strategy` which begins executing its argument immediately in the calling thread.
       */

@@ -18,7 +18,6 @@ class AlgebraicExpressionRunner(context: Context) {
   val executor = new DataFlowExecutor(context)
 
   def run(expression: Expression): Either[Err, Result] = {
-//    val resultFlow = expression.traverse(calculateNode)
     val resultFlow = buildFlow(expression)
     executor.init()
     val flowRes = Flow.run(executor)(resultFlow)
@@ -32,7 +31,10 @@ class AlgebraicExpressionRunner(context: Context) {
     case binOperation @ BinOperation(left, op, right) =>
       val leftFlow = buildFlow(left)
       val rightFlow = buildFlow(right)
-      Flow.map2withComplexity(leftFlow, rightFlow)(BinOperation(_, op, _), getOperationComplexity(op)).flatMap(calculate)
+      Flow.map2withComplexity(leftFlow, rightFlow)((l: Expression, r: Expression) => {
+        println(s"[${System.currentTimeMillis()}] l = $l, r = $r")
+        BinOperation(l, op, r)
+      }, getOperationComplexity(op)).flatMap(calculate)
     case UnaryOperation(inner, UnaryOperator('-')) => Flow.unit(Number(-1))
       // todo check
       buildFlow(inner)
@@ -74,42 +76,3 @@ class AlgebraicExpressionRunner(context: Context) {
     case other: Expression => Left(s"Expected Number but got: ${asExpressionShowable.show(other)}")
   }
 }
-
-
-/*
-
-
-p = <function1>, p2 = <function1>, complexity = 1
-p = <function1>, p2 = <function1>, complexity = 1
-p = <function1>, p2 = <function1>, complexity = 1
-p = <function1>, p2 = <function1>, complexity = 1
-p = <function1>, p2 = <function1>, complexity = 1
-p = <function1>, p2 = <function1>, complexity = 1
-p = <function1>, p2 = <function1>, complexity = 4
-p = <function1>, p2 = <function1>, complexity = 1
-p = <function1>, p2 = <function1>, complexity = 2
-res = 0.2571428571428571, time = 16, expression =
-		3.0
-	/
-					2.0
-				+
-					3.0
-			+
-					4.0
-				+
-					5.0
-		+
-					6.0
-				+
-					7.0
-			+
-				8.0
-
-
-*
-		1.0
-	+
-		2.0
-
-
- */

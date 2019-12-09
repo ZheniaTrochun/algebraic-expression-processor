@@ -32,6 +32,7 @@ object Executor {
     override def getDuration: Int = tacts
 
     private def tick(): Unit = {
+      println(s"[${System.currentTimeMillis()}] tick")
       if (currBuffer.size < parallelism) {
         val diff = parallelism - currBuffer.size
         for (_ <- 1 to diff) {
@@ -58,7 +59,7 @@ object Executor {
     }
 
     def init(): Unit = workerThreadFactory.scheduleAtFixedRate(
-      () => while (true) tick(),
+      () => tick(),
       tickTime,
       tickTime,
       TimeUnit.MILLISECONDS
