@@ -73,7 +73,6 @@ object Execution {
     def eval(es: Executor)(r: => Unit, complexity: Int): Unit =
       es.submit(new Callable[Unit] { def call = r }, complexity)
 
-    // todo 1+2+3+4+5 run on 2 cores in 2 tacts which is clearly incorrect
     def map2withComplexity[A,B,C](p: Flow[A], p2: Flow[B])(f: (A,B) => C, fComplexity: Int): Flow[C] = AsyncFlow (
       (es: Executor, complexity) => new Future[C] {
         def apply(cb: C => Unit): Unit = {
@@ -108,15 +107,11 @@ object Execution {
             }
           }
 
-          // todo check
-//          countDown.await()
-//          val a = ar.get
-//          val b = br.get
+          countDown.await()
+          val a = ar.get
+          val b = br.get
 
-          eval(es)({
-            countDown.await()
-            cb(f(ar.get(), br.get()))
-          }, complexity)
+          eval(es)(cb(f(a, b)), complexity)
         }
       }, fComplexity
     )
