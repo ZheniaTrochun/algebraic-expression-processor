@@ -17,10 +17,6 @@ import com.yevhenii.utils.IoUtils._
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 
-// todo good example:
-// (a/(a*b+a*b))+(a*(b*d+b*e+b+e))
-
-// todo 1+2+3+4+5 => 2 cores => time 4 => INCORRECT => should be calculated from left to right
 object Main extends IOApp {
 
   val prepareEnv: IO[Unit] = IO {
@@ -28,11 +24,10 @@ object Main extends IOApp {
 //    Visualizer.Directory.toFile.listFiles().foreach(_.delete())
   }
 
-  val context = Context(2, 100, c => c.head.toDouble, _ => x => x * x)
+  implicit val context = Context(2, 10, c => c.head.toDouble, _ => x => x * x)
 
   def executeAndPrint(expression: Expression): Unit = { //: Either[String, (Double, Int)] = {
-    val runner = new AlgebraicExpressionRunner(context)
-    val res = runner.run(expression)
+    val res = AlgebraicExpressionRunner.run(expression)
     res match {
       case Left(v) => sys.error(v)
       case Right((num, time)) =>
@@ -44,18 +39,11 @@ object Main extends IOApp {
 
   // todo move somewhere
   def getLinearTime(expression: Expression): Int = expression match {
-    case BinOperation(left, operator, right) => getLinearTime(left) + getLinearTime(right) + getOperationComplexity(operator)
+    case BinOperation(left, operator, right) => getLinearTime(left) + getLinearTime(right) + operator.complexity
     case UnaryOperation(inner, operator) => getLinearTime(inner)
     case BracketedExpression(inner) => getLinearTime(inner)
     case FuncCall(name, inner) => getLinearTime(inner) + 1
     case _ => 0
-  }
-
-  def getOperationComplexity(op: BinOperator): Int = op match {
-    case BinOperator('+') => 1
-    case BinOperator('-') => 1
-    case BinOperator('*') => 2
-    case BinOperator('/') => 4
   }
 
   def calculateSpeedup(expression: Expression, time: Int): Double = {

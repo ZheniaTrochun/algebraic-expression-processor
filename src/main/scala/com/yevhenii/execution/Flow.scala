@@ -4,7 +4,6 @@ import java.util.concurrent.{Callable, CountDownLatch, ExecutorService, Executor
 import java.util.concurrent.atomic.{AtomicInteger, AtomicReference}
 
 import annotation.tailrec
-import cats.Monad
 
 object Execution {
 
@@ -27,6 +26,7 @@ object Execution {
 
   object Flow {
 
+    // todo return Either or Writer[Either]]
     def run[A](es: Executor)(p: Flow[A]): A = {
       val ref = new AtomicReference[A]
       val latch = new CountDownLatch(1)
@@ -73,6 +73,7 @@ object Execution {
     def eval(es: Executor)(r: => Unit, complexity: Int): Unit =
       es.submit(new Callable[Unit] { def call = r }, complexity)
 
+    // todo 1+2+3+4+5 run on 2 cores in 2 tacts which is clearly incorrect
     def map2withComplexity[A,B,C](p: Flow[A], p2: Flow[B])(f: (A,B) => C, fComplexity: Int): Flow[C] = AsyncFlow (
       (es: Executor, complexity) => new Future[C] {
         def apply(cb: C => Unit): Unit = {
@@ -107,11 +108,15 @@ object Execution {
             }
           }
 
-          countDown.await()
-          val a = ar.get
-          val b = br.get
+          // todo check
+//          countDown.await()
+//          val a = ar.get
+//          val b = br.get
 
-          eval(es)(cb(f(ar.get(), br.get())), complexity)
+          eval(es)({
+            countDown.await()
+            cb(f(ar.get(), br.get()))
+          }, complexity)
         }
       }, fComplexity
     )

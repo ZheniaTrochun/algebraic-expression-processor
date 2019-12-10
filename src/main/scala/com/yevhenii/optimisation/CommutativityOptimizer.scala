@@ -53,10 +53,7 @@ object CommutativityOptimizer {
   }
 
   private def evaluate(expression: Expression): Int = expression match {
-    case BinOperation(left, BinOperator('+'), right) => 1 + evaluate(left) + evaluate(right)
-    case BinOperation(left, BinOperator('_'), right) => 1 + evaluate(left) + evaluate(right)
-    case BinOperation(left, BinOperator('*'), right) => 2 + evaluate(left) + evaluate(right)
-    case BinOperation(left, BinOperator('/'), right) => 4 + evaluate(left) + evaluate(right)
+    case BinOperation(left, op, right) => op.complexity + evaluate(left) + evaluate(right)
     case FuncCall(_, inner) => 5 + evaluate(inner)
     case BracketedExpression(inner) => evaluate(inner)
     case UnaryOperation(inner, _) => evaluate(inner)

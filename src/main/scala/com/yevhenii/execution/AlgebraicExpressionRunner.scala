@@ -8,23 +8,25 @@ import com.yevhenii.execution.Executor.DataFlowExecutor
 
 import scala.annotation.tailrec
 
-
 // todo (1+2)*(3/(2+3+4+5+6+7+8))
-class AlgebraicExpressionRunner(context: Context) {
+object AlgebraicExpressionRunner {
 
   type Result = (Double, Int)
   type Err = String
 
-  val executor = new DataFlowExecutor(context)
-
-  def run(expression: Expression): Either[Err, Result] = {
+  def run(expression: Expression)(implicit context: Context): Either[Err, Result] = {
+    val executor = new DataFlowExecutor(context)
     val resultFlow = buildFlow(expression)
+
+    // todo move run inside executor ????
     executor.init()
     val flowRes = Flow.run(executor)(resultFlow)
+    executor.stop()
+
     interpretRes(flowRes).map(x => x -> executor.getDuration)
   }
 
-  def buildFlow(x: Expression): Flow[Expression] = x match {
+  def buildFlow(x: Expression)(implicit context: Context): Flow[Expression] = x match {
     case Number(_) => Flow.unit(x)
     case Constant(name) => Flow.unit(Number(context.constants.apply(name)))
     case BracketedExpression(expr) => buildFlow(expr)
@@ -34,8 +36,8 @@ class AlgebraicExpressionRunner(context: Context) {
       Flow.map2withComplexity(leftFlow, rightFlow)((l: Expression, r: Expression) => {
         println(s"[${System.currentTimeMillis()}] l = $l, r = $r")
         BinOperation(l, op, r)
-      }, getOperationComplexity(op)).flatMap(calculate)
-    case UnaryOperation(inner, UnaryOperator('-')) => Flow.unit(Number(-1))
+      }, op.complexity).flatMap(calculate)
+    case UnaryOperation(inner, UnaryOperator('-')) =>
       // todo check
       buildFlow(inner)
         .map(UnaryOperation(_, UnaryOperator('-')))
@@ -43,7 +45,7 @@ class AlgebraicExpressionRunner(context: Context) {
   }
 
   @tailrec
-  final def calculateNode(x: Expression): Flow[Expression] = x match {
+  final def calculateNode(x: Expression)(implicit context: Context): Flow[Expression] = x match {
     case Number(_) => Flow.unit(x)
     case Constant(name) => Flow.unit(Number(context.constants.apply(name)))
     case BracketedExpression(expr) => calculateNode(expr)
@@ -55,13 +57,6 @@ class AlgebraicExpressionRunner(context: Context) {
     case BinOperation(Number(l), op, Number(r)) =>
       val func = getOperation(op)
       Flow.unit(Number(func(l, r)))
-  }
-
-  def getOperationComplexity(op: BinOperator): Int = op match {
-    case BinOperator('+') => 1
-    case BinOperator('-') => 1
-    case BinOperator('*') => 2
-    case BinOperator('/') => 4
   }
 
   def getOperation(op: BinOperator): (Double, Double) => Double = op match {
