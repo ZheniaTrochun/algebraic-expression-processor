@@ -26,7 +26,7 @@ object Main extends IOApp {
 //    Visualizer.Directory.toFile.listFiles().foreach(_.delete())
   }
 
-  implicit val context: Context = Context(8, 50, c => c.head.toDouble, _ => x => x * x)
+  implicit val context: Context = Context(2, 100, c => c.head.toDouble, _ => x => x * x)
 
   val getInput: IO[String] = IO {
     println("Enter expression:")
@@ -54,7 +54,7 @@ object Main extends IOApp {
         println("Processing log:")
         log.foreach(println)
         println(asTreeShowable.show(res.expression))
-        println(s"result = ${res.value}, execution time = ${res.time}, speedup = ${res.speedup}, efficiency = ${res.efficiency}")
+        println(s"result = ${res.value}, execution time = ${res.time}, linear execution time = ${res.linearTime}, speedup = ${res.speedup}, efficiency = ${res.efficiency}")
       }
 
     incorrect.map { case (log, res) => log -> res.left.get }

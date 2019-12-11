@@ -11,9 +11,14 @@ import com.yevhenii.execution.Executor.DataFlowExecutor
 import scala.annotation.tailrec
 
 // todo (1+2)*(3/(2+3+4+5+6+7+8))
+
+// todo 10+(1-2)*(2-3)+4*5*6+11+12/13+17+21*(10-30)
+
+// todo 1/2+3*4+6*7+8+5
+
 object AlgebraicExpressionRunner extends LazyLogging {
 
-  case class ExecutionResult(expression: Expression, value: Double, time: Int, speedup: Double, efficiency: Double)
+  case class ExecutionResult(expression: Expression, value: Double, time: Int, speedup: Double, efficiency: Double, linearTime: Int)
 
   type Err = String
   type Log = List[String]
@@ -27,9 +32,10 @@ object AlgebraicExpressionRunner extends LazyLogging {
     flowRes.map(_.flatMap { case (res, time) =>
       val interpreted = interpretRes(res)
       interpreted.map { x =>
-        val speedup = calculateSpeedup(expression, time)
+        val linearTime = getLinearTime(expression)
+        val speedup = calculateSpeedup(linearTime, time)
         val efficiency = calculateEfficiency(speedup, context.parallelism)
-        ExecutionResult(expression, x, time, speedup, efficiency)
+        ExecutionResult(expression, x, time, speedup, efficiency, linearTime)
       }
     }).mapWritten(str => str :: Nil)
   }
@@ -49,7 +55,7 @@ object AlgebraicExpressionRunner extends LazyLogging {
         },
         op.complexity
       )
-        .flatMap(calculate)
+        .flatMap(flow => calculate(flow, x))
 
     case UnaryOperation(inner, UnaryOperator('-')) =>
       buildFlow(inner)
@@ -69,6 +75,13 @@ object AlgebraicExpressionRunner extends LazyLogging {
   def calculate(binOperation: BinOperation): Flow[Expression] = binOperation match {
     case BinOperation(Number(l), op, Number(r)) =>
       val func = getOperation(op)
+      Flow.unit(Number(func(l, r)))
+  }
+
+  def calculate(binOperation: BinOperation, x: Expression): Flow[Expression] = binOperation match {
+    case BinOperation(Number(l), op, Number(r)) =>
+      val func = getOperation(op)
+      logger.debug(s"calculationg for ${asExpressionShowable.show(x)}")
       Flow.unit(Number(func(l, r)))
   }
 
@@ -92,10 +105,7 @@ object AlgebraicExpressionRunner extends LazyLogging {
     case _ => 0
   }
 
-  def calculateSpeedup(expression: Expression, time: Int): Double = {
-    val linearTime = getLinearTime(expression)
-    linearTime / time.toDouble
-  }
+  def calculateSpeedup(linearTime: Int, time: Int): Double = linearTime / time.toDouble
 
   def calculateEfficiency(speedup: Double, parallelism: Int): Double = speedup / parallelism
 }

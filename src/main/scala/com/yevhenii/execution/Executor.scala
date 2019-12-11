@@ -40,11 +40,9 @@ object Executor {
     private def getDuration: Int = tacts
 
     private def tick(): Unit = {
-      logger.info(s"tick start")
+      logger.info(s"tick start [${tacts}]")
       if (currBuffer.size < parallelism) {
         val diff = parallelism - currBuffer.size
-        logger.info(s"can be pooled to execution buffer: $diff")
-        logger.info(s"queue size: ${queue.size}")
         for (_ <- 1 to diff) {
           if (queue.nonEmpty) {
             currBuffer.append(queue.dequeue())
@@ -57,7 +55,6 @@ object Executor {
 
         for ((callable, complexity) <- currBuffer) {
           if (complexity == 1) {
-            logger.info("executing action")
             callable.call()
           } else {
             newBuffer.append(callable -> (complexity - 1))
