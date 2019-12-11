@@ -1,5 +1,7 @@
 package com.yevhenii.execution
 
+import cats.data.Writer
+import com.typesafe.scalalogging.LazyLogging
 import com.yevhenii._
 import com.yevhenii.ExpressionOps._
 import com.yevhenii.execution.Execution.Flow
@@ -9,39 +11,46 @@ import com.yevhenii.execution.Executor.DataFlowExecutor
 import scala.annotation.tailrec
 
 // todo (1+2)*(3/(2+3+4+5+6+7+8))
-object AlgebraicExpressionRunner {
+object AlgebraicExpressionRunner extends LazyLogging {
 
-  type Result = (Double, Int)
+  case class ExecutionResult(expression: Expression, value: Double, time: Int, speedup: Double, efficiency: Double)
+
   type Err = String
+  type Log = List[String]
 
-  def run(expression: Expression)(implicit context: Context): Either[Err, Result] = {
+  def run(expression: Expression)(implicit context: Context): Writer[Log, Either[Err, ExecutionResult]] = {
     val executor = new DataFlowExecutor(context)
     val resultFlow = buildFlow(expression)
 
-    // todo move run inside executor ????
-    executor.init()
-    val flowRes = Flow.run(executor)(resultFlow)
-    executor.stop()
+    val flowRes = executor.run(resultFlow)
 
-    interpretRes(flowRes).map(x => x -> executor.getDuration)
+    flowRes.map(_.flatMap { case (res, time) =>
+      val interpreted = interpretRes(res)
+      interpreted.map { x =>
+        val speedup = calculateSpeedup(expression, time)
+        val efficiency = calculateEfficiency(speedup, context.parallelism)
+        ExecutionResult(expression, x, time, speedup, efficiency)
+      }
+    }).mapWritten(str => str :: Nil)
   }
 
   def buildFlow(x: Expression)(implicit context: Context): Flow[Expression] = x match {
     case Number(_) => Flow.unit(x)
     case Constant(name) => Flow.unit(Number(context.constants.apply(name)))
     case BracketedExpression(expr) => buildFlow(expr)
-    case binOperation @ BinOperation(left, op, right) =>
+    case BinOperation(left, op, right) =>
       val leftFlow = buildFlow(left)
+      logger.debug(s"built left flow ${asExpressionShowable.show(x)}")
       val rightFlow = buildFlow(right)
+      logger.debug(s"built right flow ${asExpressionShowable.show(x)}")
       Flow.map2withComplexity(leftFlow, rightFlow)((l: Expression, r: Expression) => {
-        println(s"[${System.currentTimeMillis()}] l = $l, r = $r")
+        logger.info(s"executing: $l ${op.operator} $r")
         BinOperation(l, op, r)
-      }, op.complexity).flatMap(calculate)
-    case UnaryOperation(inner, UnaryOperator('-')) =>
-      // todo check
-      buildFlow(inner)
-        .map(UnaryOperation(_, UnaryOperator('-')))
-        .flatMap { case UnaryOperation(Number(n), UnaryOperator('-')) => Flow.unit(Number(-n)) }
+      }, op.complexity).flatMap(res => calculate(res, x))
+//    case UnaryOperation(inner, UnaryOperator('-')) =>
+//      buildFlow(inner)
+//        .map(UnaryOperation(_, UnaryOperator('-')))
+//        .flatMap { case UnaryOperation(Number(n), UnaryOperator('-')) => Flow.unit(Number(-n)) }
   }
 
   @tailrec
@@ -59,6 +68,13 @@ object AlgebraicExpressionRunner {
       Flow.unit(Number(func(l, r)))
   }
 
+  def calculate(binOperation: BinOperation, x: Expression): Flow[Expression] = binOperation match {
+    case BinOperation(Number(l), op, Number(r)) =>
+      val func = getOperation(op)
+      logger.debug(s"calculationg for ${asExpressionShowable.show(x)}")
+      Flow.unit(Number(func(l, r)))
+  }
+
   def getOperation(op: BinOperator): (Double, Double) => Double = op match {
     case BinOperator('+') => _ + _
     case BinOperator('-') => _ - _
@@ -70,4 +86,19 @@ object AlgebraicExpressionRunner {
     case Number(x) => Right(x)
     case other: Expression => Left(s"Expected Number but got: ${asExpressionShowable.show(other)}")
   }
+
+  def getLinearTime(expression: Expression): Int = expression match {
+    case BinOperation(left, operator, right) => getLinearTime(left) + getLinearTime(right) + operator.complexity
+    case UnaryOperation(inner, _) => getLinearTime(inner)
+    case BracketedExpression(inner) => getLinearTime(inner)
+    case FuncCall(_, inner) => getLinearTime(inner) + 1
+    case _ => 0
+  }
+
+  def calculateSpeedup(expression: Expression, time: Int): Double = {
+    val linearTime = getLinearTime(expression)
+    linearTime / time.toDouble
+  }
+
+  def calculateEfficiency(speedup: Double, parallelism: Int): Double = speedup / parallelism
 }

@@ -11,6 +11,8 @@ libraryDependencies ++= Seq(
   "org.typelevel" %% "cats-core" % "2.0.0",
   "org.typelevel" %% "cats-effect" % "2.0.0",
   "org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.2",
-  "org.stanch" %% "reftree" % "1.2.0"
-  //  "org.scala-lang.modules" %% "scala-parallel-collections" % "0.2.0"
+  "org.stanch" %% "reftree" % "1.2.0",
+  "ch.qos.logback" % "logback-classic" % "1.2.3",
+//  "uk.org.lidalia" % "sysout-over-slf4j" % "1.0.2",
+  "com.typesafe.scala-logging" %% "scala-logging" % "3.9.2"
 )

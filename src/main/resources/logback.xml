@@ -1,0 +1,22 @@
+<configuration>
+
+    <appender name="FILE" class="ch.qos.logback.core.FileAppender">
+        <file>logs/log.log</file>
+        <append>true</append>
+        <layout class="ch.qos.logback.classic.PatternLayout">
+            <Pattern>
+                %d{HH:mm:ss.SSS} %-5level - %msg%n
+            </Pattern>
+        </layout>
+    </appender>
+
+    <logger name="com.yevhenii" level="debug" additivity="false">
+        <appender-ref ref="FILE"/>
+    </logger>
+
+    <root level="error">
+    </root>
+<!--    <logger name="ch.qos.logback" level="error">-->
+<!--    </logger>-->
+
+</configuration>

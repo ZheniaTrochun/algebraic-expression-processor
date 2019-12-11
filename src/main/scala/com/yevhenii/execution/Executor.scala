@@ -1,20 +1,30 @@
 package com.yevhenii.execution
 
+import java.io.FileWriter
 import java.util.concurrent.{Callable, Executors, ScheduledFuture, TimeUnit}
 
+import cats.data.Writer
+import com.typesafe.scalalogging.LazyLogging
+import com.yevhenii.execution.Execution.Flow
+
 import scala.collection.mutable
+import scala.io.Source
 
 trait Executor {
+  type Time = Int
+  type Log = String
+  type Err = String
 
   def submit(x: Callable[_], complexity: Int = 1): Unit
   def submitRunnable(x: Runnable, complexity: Int = 1): Unit
 
-  def getDuration: Int
+  def run[A](flow: Flow[A]): Writer[Log, Either[Err, (A, Time)]]
 }
 
 object Executor {
-  class DataFlowExecutor(context: Context) extends Executor {
+  class DataFlowExecutor(context: Context) extends Executor with LazyLogging {
     val parallelism: Int = context.parallelism
+    private val file = "logs/log.log" // todo ugly
 
     private[this] val tickTime: Int = context.tickTime
     private[this] var tacts = 0
@@ -27,16 +37,17 @@ object Executor {
     override def submit(x: Callable[_], complexity: Int): Unit = queue.enqueue(x -> complexity)
     override def submitRunnable(x: Runnable, complexity: Int): Unit = submit(() => x.run(), complexity)
 
-    override def getDuration: Int = tacts
+    private def getDuration: Int = tacts
 
     private def tick(): Unit = {
-      println(s"[${System.currentTimeMillis()}] tick")
+      logger.info(s"tick start")
       if (currBuffer.size < parallelism) {
         val diff = parallelism - currBuffer.size
-        println(s"enqueue max $diff events")
+        logger.info(s"can be pooled to execution buffer: $diff")
+        logger.info(s"queue size: ${queue.size}")
         for (_ <- 1 to diff) {
           if (queue.nonEmpty) {
-            println("enqueue")
+            logger.info("enqueueing one action from queue")
             currBuffer.append(queue.dequeue())
           }
         }
@@ -47,7 +58,7 @@ object Executor {
 
         for ((callable, complexity) <- currBuffer) {
           if (complexity == 1) {
-            println("call")
+            logger.info("executing action")
             callable.call()
           } else {
             newBuffer.append(callable -> (complexity - 1))
@@ -59,7 +70,17 @@ object Executor {
       }
     }
 
-    def init(): Unit = {
+    private def getCapturedLog(): String = {
+      val logSource = Source.fromFile(file)
+      val log = logSource.mkString
+      logSource.close()
+      val fw = new FileWriter(file ,false)
+      fw.write(" ")
+      log
+    }
+
+    private def init(): Unit = {
+      logger.info("Init executor service")
       tickSchedulled = Some(workerThreadFactory.scheduleAtFixedRate(
         () => tick(),
         tickTime,
@@ -68,6 +89,16 @@ object Executor {
       ))
     }
 
-    def stop(): Unit = tickSchedulled.foreach(_.cancel(true))
+    private def stop(): Unit = {
+      logger.info("Stop executor service")
+      tickSchedulled.foreach(_.cancel(true))
+    }
+
+    override def run[A](flow: Flow[A]): Writer[Log, Either[Err, (A, Time)]] = {
+      init()
+      val flowRes = Flow.run(this)(flow)
+      stop()
+      Writer(getCapturedLog(), flowRes.map(_ -> getDuration))
+    }
   }
 }

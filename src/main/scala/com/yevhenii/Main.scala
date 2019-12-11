@@ -1,6 +1,7 @@
 package com.yevhenii
 
 import cats.Show
+import cats.data.Writer
 import cats.effect._
 import cats.implicits._
 import com.yevhenii.visualization.Visualizer._
@@ -12,6 +13,7 @@ import com.yevhenii.optimisation.CommutativityOptimizer._
 import com.yevhenii.parsing.FormulaParser
 import com.yevhenii.parsing.FormulaParser.ParseError._
 import com.yevhenii.ExpressionOps._
+import com.yevhenii.execution.AlgebraicExpressionRunner.ExecutionResult
 import com.yevhenii.utils.IoUtils._
 
 import scala.concurrent.Future
@@ -24,36 +26,7 @@ object Main extends IOApp {
 //    Visualizer.Directory.toFile.listFiles().foreach(_.delete())
   }
 
-  implicit val context = Context(2, 10, c => c.head.toDouble, _ => x => x * x)
-
-  def executeAndPrint(expression: Expression): Unit = { //: Either[String, (Double, Int)] = {
-    val res = AlgebraicExpressionRunner.run(expression)
-    res match {
-      case Left(v) => sys.error(v)
-      case Right((num, time)) =>
-        val speedup = calculateSpeedup(expression, time)
-        val efficiency = calculateEfficiency(speedup)
-        println(s"res = $num, time = $time, speedup = $speedup, efficiency = $efficiency, expression = \n${asTreeShowable.show(expression)}")
-    }
-  }
-
-  // todo move somewhere
-  def getLinearTime(expression: Expression): Int = expression match {
-    case BinOperation(left, operator, right) => getLinearTime(left) + getLinearTime(right) + operator.complexity
-    case UnaryOperation(inner, operator) => getLinearTime(inner)
-    case BracketedExpression(inner) => getLinearTime(inner)
-    case FuncCall(name, inner) => getLinearTime(inner) + 1
-    case _ => 0
-  }
-
-  def calculateSpeedup(expression: Expression, time: Int): Double = {
-    val linearTime = getLinearTime(expression)
-    linearTime / time.toDouble
-  }
-
-  def calculateEfficiency(speedup: Double): Double = {
-    speedup / context.parallelism
-  }
+  implicit val context: Context = Context(8, 50, c => c.head.toDouble, _ => x => x * x)
 
   val getInput: IO[String] = IO {
     println("Enter expression:")
@@ -65,9 +38,33 @@ object Main extends IOApp {
     println(Show[Throwable].show(e))
   }.as(ExitCode.Error)
 
-  def printSuccess(x: List[Expression]): IO[ExitCode] = IO {
+  def printSuccess[A](x: A): IO[ExitCode] = IO {
     println("Processed successfully")
   }.as(ExitCode.Success)
+
+  def processResults(results: List[Writer[List[String], Either[String, ExecutionResult]]]): IO[Unit] = IO {
+    val (correct, incorrect) = results.map(_.run).partition { case (_, res) => res.isRight }
+
+    correct.map { case (log, res) => log -> res.right.get }
+      .sortBy { case (_, res) => res.efficiency }
+      .reverse
+      .foreach { case (log, res) =>
+        println()
+        println("Processing CORRECTLY")
+        println("Processing log:")
+        log.foreach(println)
+        println(asTreeShowable.show(res.expression))
+        println(s"result = ${res.value}, execution time = ${res.time}, speedup = ${res.speedup}, efficiency = ${res.efficiency}")
+      }
+
+    incorrect.map { case (log, res) => log -> res.left.get }
+      .foreach { case (log, err) =>
+        println("Processing FAILED")
+        println(s"Error message: $err")
+        println("Processing log:")
+        log.foreach(println)
+      }
+  }
 
   def visualizeItemUnsafe(pair: (Expression, Int)): Future[Unit] = {
     val (item, index) = pair
@@ -86,10 +83,12 @@ object Main extends IOApp {
       .map(simplifyOneByOne)
       .map(_.map(balance))
       .map(_.flatMap(orderByComplexity))
-      .peek(visualizeResults)
-      .peek(x => IO(x.foreach(executeAndPrint)))
 
-  def runOnce(): IO[ExitCode] = expressionsIO.redeemWith(printFailure, printSuccess)
+  def runOnce(): IO[ExitCode] =
+    expressionsIO
+      .map(_.map(AlgebraicExpressionRunner.run))
+      .flatMap(processResults)
+      .redeemWith(printFailure, printSuccess)
 
   def runAsRepl(): IO[ExitCode] = IO {
     while (true) {

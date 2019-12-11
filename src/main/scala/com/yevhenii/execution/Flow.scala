@@ -3,9 +3,11 @@ package com.yevhenii.execution
 import java.util.concurrent.{Callable, CountDownLatch, ExecutorService, Executors}
 import java.util.concurrent.atomic.{AtomicInteger, AtomicReference}
 
+import com.typesafe.scalalogging.LazyLogging
+
 import annotation.tailrec
 
-object Execution {
+object Execution extends LazyLogging {
 
   trait Future[+A] {
     def apply(k: A => Unit): Unit
@@ -26,16 +28,19 @@ object Execution {
 
   object Flow {
 
-    // todo return Either or Writer[Either]]
-    def run[A](es: Executor)(p: Flow[A]): A = {
+    def run[A](es: Executor)(p: Flow[A]): Either[String, A] = {
       val ref = new AtomicReference[A]
       val latch = new CountDownLatch(1)
-      p(es) { a =>
-        ref.set(a)
-        latch.countDown()
-      }
-      latch.await()
-      ref.get
+//      try {
+        p(es) { a =>
+          ref.set(a)
+          latch.countDown()
+        }
+        latch.await()
+        Right(ref.get)
+//      } catch {
+//        case err: Exception => Left(err.getMessage)
+//      }
     }
 
     def unit[A](a: A): Flow[A] = UnitFlow(a)
@@ -76,12 +81,6 @@ object Execution {
     def map2withComplexity[A,B,C](p: Flow[A], p2: Flow[B])(f: (A,B) => C, fComplexity: Int): Flow[C] = AsyncFlow (
       (es: Executor, complexity) => new Future[C] {
         def apply(cb: C => Unit): Unit = {
-          (p, p2) match {
-            case (UnitFlow(v1), UnitFlow(v2)) => println(s"map2 unit($v1), unit($v2)")
-            case (UnitFlow(v1), AsyncFlow(f, c)) => println(s"map2 unit($v1), async(func, $c)")
-            case (AsyncFlow(f, c), UnitFlow(v2)) => println(s"map2 async(func, $c), unit($v2)")
-            case (AsyncFlow(f1, c1), AsyncFlow(f2, c2)) => println(s"map2 async(func, $c1), async(func, $c2)")
-          }
 
           val countDown = new CountDownLatch(2)
           val ar = new AtomicReference[A]()
@@ -91,20 +90,40 @@ object Execution {
             case UnitFlow(x) =>
               ar.set(x)
               countDown.countDown()
-            case AsyncFlow(ap, c) => p(es) { a =>
-              ar.set(a)
-              countDown.countDown()
-            }
+            case AsyncFlow(ap, c) =>
+              logger.debug("prepared 1")
+              p(es) { a =>
+                logger.debug("done 1")
+                ar.set(a)
+                countDown.countDown()
+              }
+            case flow: Flow[A] =>
+              logger.debug("prepared 1")
+              flow.apply(es) { a =>
+                logger.debug("done 1")
+                ar.set(a)
+                countDown.countDown()
+              }
           }
 
           p2 match {
             case UnitFlow(x) =>
               br.set(x)
               countDown.countDown()
-            case AsyncFlow(ap, c) => p2(es) { b =>
-              br.set(b)
-              countDown.countDown()
-            }
+            case AsyncFlow(bp, c) =>
+              logger.debug("prepared 2")
+              p2(es) { b =>
+                logger.debug("done 2")
+                br.set(b)
+                countDown.countDown()
+              }
+            case flow: Flow[B] =>
+              logger.debug("prepared 2")
+              flow.apply(es) { b =>
+                logger.debug("done 2")
+                br.set(b)
+                countDown.countDown()
+              }
           }
 
           countDown.await()
@@ -136,13 +155,21 @@ object Execution {
     def chooser[A,B](p: Flow[A])(f: A => Flow[B]): Flow[B] =
       flatMap(p)(f)
 
-    def flatMap[A,B](p: Flow[A])(f: A => Flow[B]): Flow[B] = AsyncFlow (
-      (es: Executor, _) => new Future[B] {
+    def flatMap[A,B](p: Flow[A])(f: A => Flow[B]): Flow[B] = new Flow[B] {
+      override def apply(es: Executor): Future[B] = new Future[B] {
         def apply(cb: B => Unit): Unit =
           p(es)(a => f(a)(es)(cb))
-      },
-      1
-    )
+      }
+    }
+
+//    def flatMap[A,B](p: Flow[A])(f: A => Flow[B]): Flow[B] = AsyncFlow (
+//      (es: Executor, _) => new Future[B] {
+//        def apply(cb: B => Unit): Unit =
+//          p(es)(a => f(a)(es)(cb))
+//      },
+//      1
+//    )
+
 
     implicit def toParOps[A](p: Flow[A]): ParOps[A] = new ParOps(p)
 
