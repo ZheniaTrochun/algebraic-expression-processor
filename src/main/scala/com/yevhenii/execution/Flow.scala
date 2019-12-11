@@ -162,14 +162,13 @@ object Execution extends LazyLogging {
       }
     }
 
-//    def flatMap[A,B](p: Flow[A])(f: A => Flow[B]): Flow[B] = AsyncFlow (
-//      (es: Executor, _) => new Future[B] {
-//        def apply(cb: B => Unit): Unit =
-//          p(es)(a => f(a)(es)(cb))
-//      },
-//      1
-//    )
-
+    def flatMap[A,B](p: Flow[A])(f: A => Flow[B]): Flow[B] = AsyncFlow (
+      (es: Executor, _) => new Future[B] {
+        def apply(cb: B => Unit): Unit =
+          p(es)(a => f(a)(es)(cb))
+      },
+      1
+    )
 
     implicit def toParOps[A](p: Flow[A]): ParOps[A] = new ParOps(p)
 
