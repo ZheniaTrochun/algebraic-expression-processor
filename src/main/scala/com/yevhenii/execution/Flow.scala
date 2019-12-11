@@ -1,6 +1,6 @@
 package com.yevhenii.execution
 
-import java.util.concurrent.{Callable, CountDownLatch, ExecutorService, Executors}
+import java.util.concurrent.{Callable, CountDownLatch}
 import java.util.concurrent.atomic.{AtomicInteger, AtomicReference}
 
 import com.typesafe.scalalogging.LazyLogging
@@ -31,16 +31,16 @@ object Execution extends LazyLogging {
     def run[A](es: Executor)(p: Flow[A]): Either[String, A] = {
       val ref = new AtomicReference[A]
       val latch = new CountDownLatch(1)
-//      try {
+      try {
         p(es) { a =>
           ref.set(a)
           latch.countDown()
         }
         latch.await()
         Right(ref.get)
-//      } catch {
-//        case err: Exception => Left(err.getMessage)
-//      }
+      } catch {
+        case err: Exception => Left(err.toString)
+      }
     }
 
     def unit[A](a: A): Flow[A] = UnitFlow(a)
@@ -81,56 +81,18 @@ object Execution extends LazyLogging {
     def map2withComplexity[A,B,C](p: Flow[A], p2: Flow[B])(f: (A,B) => C, fComplexity: Int): Flow[C] = AsyncFlow (
       (es: Executor, complexity) => new Future[C] {
         def apply(cb: C => Unit): Unit = {
-
-          val countDown = new CountDownLatch(2)
-          val ar = new AtomicReference[A]()
-          val br = new AtomicReference[B]()
-
-          p match {
-            case UnitFlow(x) =>
-              ar.set(x)
-              countDown.countDown()
-            case AsyncFlow(ap, c) =>
-              logger.debug("prepared 1")
-              p(es) { a =>
-                logger.debug("done 1")
-                ar.set(a)
-                countDown.countDown()
-              }
-            case flow: Flow[A] =>
-              logger.debug("prepared 1")
-              flow.apply(es) { a =>
-                logger.debug("done 1")
-                ar.set(a)
-                countDown.countDown()
-              }
+          var ar: Option[A] = None
+          var br: Option[B] = None
+          val combiner = Actor[Either[A,B]]() {
+            case Left(a) =>
+              if (br.isDefined) eval(es)(cb(f(a,br.get)), complexity)
+              else ar = Some(a)
+            case Right(b) =>
+              if (ar.isDefined) eval(es)(cb(f(ar.get,b)), complexity)
+              else br = Some(b)
           }
-
-          p2 match {
-            case UnitFlow(x) =>
-              br.set(x)
-              countDown.countDown()
-            case AsyncFlow(bp, c) =>
-              logger.debug("prepared 2")
-              p2(es) { b =>
-                logger.debug("done 2")
-                br.set(b)
-                countDown.countDown()
-              }
-            case flow: Flow[B] =>
-              logger.debug("prepared 2")
-              flow.apply(es) { b =>
-                logger.debug("done 2")
-                br.set(b)
-                countDown.countDown()
-              }
-          }
-
-          countDown.await()
-          val a = ar.get
-          val b = br.get
-
-          eval(es)(cb(f(a, b)), complexity)
+          p(es)(a => combiner ! Left(a))
+          p2(es)(b => combiner ! Right(b))
         }
       }, fComplexity
     )
@@ -143,24 +105,18 @@ object Execution extends LazyLogging {
       }, complexity
     )
 
-    def map[A,B](p: Flow[A])(f: A => B): Flow[B] = new Flow[B] {
-      override def apply(es: Executor): Future[B] = new Future[B] {
+    def map[A,B](p: Flow[A])(f: A => B): Flow[B] = AsyncFlow (
+      (es: Executor, _) => new Future[B] {
         override def apply(cb: B => Unit): Unit = {
           p(es)(a => cb(f(a)))
         }
-      }
-    }
+      },
+      1
+    )
 
     /* `chooser` is usually called `flatMap` or `bind`. */
     def chooser[A,B](p: Flow[A])(f: A => Flow[B]): Flow[B] =
       flatMap(p)(f)
-
-    def flatMap[A,B](p: Flow[A])(f: A => Flow[B]): Flow[B] = new Flow[B] {
-      override def apply(es: Executor): Future[B] = new Future[B] {
-        def apply(cb: B => Unit): Unit =
-          p(es)(a => f(a)(es)(cb))
-      }
-    }
 
     def flatMap[A,B](p: Flow[A])(f: A => Flow[B]): Flow[B] = AsyncFlow (
       (es: Executor, _) => new Future[B] {
@@ -242,7 +198,7 @@ object Execution extends LazyLogging {
   object Actor {
 
     /** Create an `Actor` backed by the given `ExecutorService`. */
-    def apply[A](es: ExecutorService = Executors.newCachedThreadPool())(handler: A => Unit, onError: Throwable => Unit = throw(_)): Actor[A] =
+    def apply[A]()(handler: A => Unit, onError: Throwable => Unit = throw(_)): Actor[A] =
       new Actor(Strategy.sequential)(handler, onError)
   }
 

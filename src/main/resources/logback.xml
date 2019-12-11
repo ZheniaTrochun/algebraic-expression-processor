@@ -16,7 +16,5 @@
 
     <root level="error">
     </root>
-<!--    <logger name="ch.qos.logback" level="error">-->
-<!--    </logger>-->
 
 </configuration>

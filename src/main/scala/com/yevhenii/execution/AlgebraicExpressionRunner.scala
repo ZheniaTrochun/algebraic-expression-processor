@@ -38,19 +38,23 @@ object AlgebraicExpressionRunner extends LazyLogging {
     case Number(_) => Flow.unit(x)
     case Constant(name) => Flow.unit(Number(context.constants.apply(name)))
     case BracketedExpression(expr) => buildFlow(expr)
+
     case BinOperation(left, op, right) =>
       val leftFlow = buildFlow(left)
-      logger.debug(s"built left flow ${asExpressionShowable.show(x)}")
       val rightFlow = buildFlow(right)
-      logger.debug(s"built right flow ${asExpressionShowable.show(x)}")
-      Flow.map2withComplexity(leftFlow, rightFlow)((l: Expression, r: Expression) => {
-        logger.info(s"executing: $l ${op.operator} $r")
-        BinOperation(l, op, r)
-      }, op.complexity).flatMap(res => calculate(res, x))
-//    case UnaryOperation(inner, UnaryOperator('-')) =>
-//      buildFlow(inner)
-//        .map(UnaryOperation(_, UnaryOperator('-')))
-//        .flatMap { case UnaryOperation(Number(n), UnaryOperator('-')) => Flow.unit(Number(-n)) }
+      Flow.map2withComplexity(leftFlow, rightFlow)(
+        (l: Expression, r: Expression) => {
+          logger.info(s"executing: $l ${op.operator} $r")
+          BinOperation(l, op, r)
+        },
+        op.complexity
+      )
+        .flatMap(calculate)
+
+    case UnaryOperation(inner, UnaryOperator('-')) =>
+      buildFlow(inner)
+        .map(UnaryOperation(_, UnaryOperator('-')))
+        .flatMap { case UnaryOperation(Number(n), UnaryOperator('-')) => Flow.unit(Number(-n)) }
   }
 
   @tailrec
@@ -65,13 +69,6 @@ object AlgebraicExpressionRunner extends LazyLogging {
   def calculate(binOperation: BinOperation): Flow[Expression] = binOperation match {
     case BinOperation(Number(l), op, Number(r)) =>
       val func = getOperation(op)
-      Flow.unit(Number(func(l, r)))
-  }
-
-  def calculate(binOperation: BinOperation, x: Expression): Flow[Expression] = binOperation match {
-    case BinOperation(Number(l), op, Number(r)) =>
-      val func = getOperation(op)
-      logger.debug(s"calculationg for ${asExpressionShowable.show(x)}")
       Flow.unit(Number(func(l, r)))
   }
 

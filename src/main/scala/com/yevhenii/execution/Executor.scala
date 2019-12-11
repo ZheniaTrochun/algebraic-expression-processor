@@ -47,7 +47,6 @@ object Executor {
         logger.info(s"queue size: ${queue.size}")
         for (_ <- 1 to diff) {
           if (queue.nonEmpty) {
-            logger.info("enqueueing one action from queue")
             currBuffer.append(queue.dequeue())
           }
         }
